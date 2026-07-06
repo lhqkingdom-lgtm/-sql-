@@ -19,20 +19,23 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:slowsql}
-    password: ${RABBITMQ_PASS:slowsql}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
     listener:
       simple:
         acknowledge-mode: manual
         prefetch: 1
+        default-requeue-rejected: true
+        retry:
+          enabled: false
 
   # ========== Redis ==========
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: 0
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DB:2}
 
 # ========== 内部安全令牌（Python Agent 调用数据 API 必须携带） ==========
 gateway:
