@@ -1,0 +1,113 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.slowsql:slow-sql-gateway >--------------------
+[INFO] Building slow-sql-gateway 5.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.0:run (default-cli) > test-compile @ slow-sql-gateway >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ slow-sql-gateway ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ slow-sql-gateway ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ slow-sql-gateway ---
+[INFO] skip non existing resourceDirectory D:\slow-sql-analyzer-v5\slow-sql-gateway\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ slow-sql-gateway ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:3.5.0:run (default-cli) < test-compile @ slow-sql-gateway <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.0:run (default-cli) @ slow-sql-gateway ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.5.0)
+
+2026-07-06T17:06:29.081+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.SlowSqlGatewayApplication    : Starting SlowSqlGatewayApplication using Java 17.0.18 with PID 78744 (D:\slow-sql-analyzer-v5\slow-sql-gateway\target\classes started by 19873 in D:\slow-sql-analyzer-v5\slow-sql-gateway)
+2026-07-06T17:06:29.083+08:00 DEBUG 78744 --- [slow-sql-gateway] [           main] com.slowsql.SlowSqlGatewayApplication    : Running with Spring Boot v3.5.0, Spring v6.2.7
+2026-07-06T17:06:29.084+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.SlowSqlGatewayApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-07-06T17:06:29.812+08:00  INFO 78744 --- [slow-sql-gateway] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-07-06T17:06:29.815+08:00  INFO 78744 --- [slow-sql-gateway] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-07-06T17:06:29.846+08:00  INFO 78744 --- [slow-sql-gateway] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 19 ms. Found 0 Redis repository interfaces.
+2026-07-06T17:06:30.012+08:00  INFO 78744 --- [slow-sql-gateway] [           main] ptablePropertiesBeanFactoryPostProcessor : Post-processing PropertySource instances
+2026-07-06T17:06:30.040+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Skipping PropertySource configurationProperties [class org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertySource
+2026-07-06T17:06:30.042+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Skipping PropertySource servletConfigInitParams [class org.springframework.core.env.PropertySource$StubPropertySource
+2026-07-06T17:06:30.043+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Skipping PropertySource servletContextInitParams [class org.springframework.core.env.PropertySource$StubPropertySource
+2026-07-06T17:06:30.044+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource systemProperties [org.springframework.core.env.PropertiesPropertySource] to EncryptableMapPropertySourceWrapper
+2026-07-06T17:06:30.044+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource systemEnvironment [org.springframework.boot.env.SystemEnvironmentPropertySourceEnvironmentPostProcessor$OriginAwareSystemEnvironmentPropertySource] to EncryptableSystemEnvironmentPropertySourceWrapper
+2026-07-06T17:06:30.044+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource random [org.springframework.boot.env.RandomValuePropertySource] to EncryptablePropertySourceWrapper
+2026-07-06T17:06:30.044+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource Config resource 'class path resource [application.yml]' via location 'optional:classpath:/' [org.springframework.boot.env.OriginTrackedMapPropertySource] to EncryptableMapPropertySourceWrapper
+2026-07-06T17:06:30.045+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource applicationInfo [org.springframework.boot.ApplicationInfoPropertySource] to EncryptableMapPropertySourceWrapper
+2026-07-06T17:06:30.611+08:00  INFO 78744 --- [slow-sql-gateway] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-07-06T17:06:30.651+08:00  INFO 78744 --- [slow-sql-gateway] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-07-06T17:06:30.652+08:00  INFO 78744 --- [slow-sql-gateway] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.41]
+2026-07-06T17:06:30.710+08:00  INFO 78744 --- [slow-sql-gateway] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-07-06T17:06:30.711+08:00  INFO 78744 --- [slow-sql-gateway] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1595 ms
+2026-07-06T17:06:30.839+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.filter.DefaultLazyPropertyFilter   : Property Filter custom Bean not found with name 'encryptablePropertyFilter'. Initializing Default Property Filter
+2026-07-06T17:06:30.860+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.r.DefaultLazyPropertyResolver      : Property Resolver custom Bean not found with name 'encryptablePropertyResolver'. Initializing Default Property Resolver
+2026-07-06T17:06:30.862+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.d.DefaultLazyPropertyDetector      : Property Detector custom Bean not found with name 'encryptablePropertyDetector'. Initializing Default Property Detector
+2026-07-06T17:06:30.883+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : diag-tc-dev-mysql - Starting...
+2026-07-06T17:06:31.140+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.pool.HikariPool        : diag-tc-dev-mysql - Added connection com.mysql.cj.jdbc.ConnectionImpl@70f4abc1
+2026-07-06T17:06:31.142+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : diag-tc-dev-mysql - Start completed.
+2026-07-06T17:06:31.145+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : mon-tc-dev-mysql - Starting...
+2026-07-06T17:06:31.163+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.pool.HikariPool        : mon-tc-dev-mysql - Added connection com.mysql.cj.jdbc.ConnectionImpl@47c96f2c
+2026-07-06T17:06:31.164+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : mon-tc-dev-mysql - Start completed.
+2026-07-06T17:06:31.164+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.DataSourceManager     : 连接池已创建: tc-dev-mysql → localhost:3306
+2026-07-06T17:06:31.164+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : diag-tc-prod-mysql - Starting...
+2026-07-06T17:06:42.199+08:00 ERROR 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.DataSourceManager     : 创建连接池失败 [tc-prod-mysql] 10.0.2.1:3306: Failed to initialize pool: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server. —— 跳过此实例，不影响其他实例
+2026-07-06T17:06:42.226+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : diag-pay-dev-mysql - Starting...
+2026-07-06T17:06:53.240+08:00 ERROR 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.DataSourceManager     : 创建连接池失败 [pay-dev-mysql] 10.0.3.1:3306: Failed to initialize pool: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server. —— 跳过此实例，不影响其他实例
+2026-07-06T17:06:53.267+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.DataSourceManager     : 连接池初始化完成: 新建 1 个, 复用 0 个, 共管理 3 个实例
+2026-07-06T17:06:53.541+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-07-06T17:06:53.583+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@3a8b9458
+2026-07-06T17:06:53.583+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-07-06T17:06:54.154+08:00  INFO 78744 --- [slow-sql-gateway] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-06T17:06:54.248+08:00  INFO 78744 --- [slow-sql-gateway] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2026-07-06T17:06:54.250+08:00  INFO 78744 --- [slow-sql-gateway] [           main] u.j.c.RefreshScopeRefreshedEventListener : Refreshing cached encryptable property sources on ServletWebServerInitializedEvent
+2026-07-06T17:06:54.250+08:00  INFO 78744 --- [slow-sql-gateway] [           main] CachingDelegateEncryptablePropertySource : Property Source systemProperties refreshed
+2026-07-06T17:06:54.250+08:00  INFO 78744 --- [slow-sql-gateway] [           main] CachingDelegateEncryptablePropertySource : Property Source systemEnvironment refreshed
+2026-07-06T17:06:54.251+08:00  INFO 78744 --- [slow-sql-gateway] [           main] CachingDelegateEncryptablePropertySource : Property Source random refreshed
+2026-07-06T17:06:54.251+08:00  INFO 78744 --- [slow-sql-gateway] [           main] CachingDelegateEncryptablePropertySource : Property Source Config resource 'class path resource [application.yml]' via location 'optional:classpath:/' refreshed
+2026-07-06T17:06:54.251+08:00  INFO 78744 --- [slow-sql-gateway] [           main] CachingDelegateEncryptablePropertySource : Property Source applicationInfo refreshed
+2026-07-06T17:06:54.252+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Skipping PropertySource configurationProperties [class org.springframework.boot.context.properties.source.ConfigurationPropertySourcesPropertySource
+2026-07-06T17:06:54.252+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Skipping PropertySource servletConfigInitParams [class org.springframework.core.env.PropertySource$StubPropertySource
+2026-07-06T17:06:54.252+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource servletContextInitParams [org.springframework.web.context.support.ServletContextPropertySource] to EncryptableEnumerablePropertySourceWrapper
+2026-07-06T17:06:54.252+08:00  INFO 78744 --- [slow-sql-gateway] [           main] c.u.j.EncryptablePropertySourceConverter : Converting PropertySource Management Server [org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration$SameManagementContextConfiguration$1] to EncryptablePropertySourceWrapper
+2026-07-06T17:06:54.265+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.SlowSqlGatewayApplication    : Started SlowSqlGatewayApplication in 25.6 seconds (process running for 25.978)
+2026-07-06T17:06:54.309+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.SchemaInitializer     : 检查并初始化平台数据库表...
+2026-07-06T17:06:54.311+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.SchemaInitializer     : schema.sql 执行完成
+2026-07-06T17:06:54.314+08:00  INFO 78744 --- [slow-sql-gateway] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-07-06T17:06:54.314+08:00  INFO 78744 --- [slow-sql-gateway] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-07-06T17:06:54.315+08:00  INFO 78744 --- [slow-sql-gateway] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-07-06T17:06:54.357+08:00  INFO 78744 --- [slow-sql-gateway] [           main] com.slowsql.config.SchemaInitializer     : 平台数据库表初始化完成
+2026-07-06T17:07:29.085+08:00 DEBUG 78744 --- [slow-sql-gateway] [nio-8080-exec-3] com.slowsql.config.DdlCache              : DDL 缓存读取失败: Unable to connect to Redis
+2026-07-06T17:07:29.109+08:00 DEBUG 78744 --- [slow-sql-gateway] [nio-8080-exec-3] com.slowsql.config.DdlCache              : DDL 缓存写入失败: Unable to connect to Redis
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:52 min
+[INFO] Finished at: 2026-07-06T17:08:17+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.5.0:run (default-cli) on project slow-sql-gateway: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

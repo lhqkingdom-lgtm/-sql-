@@ -421,7 +421,7 @@ public class DataAccessController {
             long reads = 0, requests = 0;
             for (Map<String, Object> r : rows) {
                 String name = (String) r.get("Variable_name");
-                long val = ((Number) r.get("Value")).longValue();
+                long val = toLong(r.get("Value"));
                 if ("Innodb_buffer_pool_reads".equals(name)) reads = val;
                 if ("Innodb_buffer_pool_read_requests".equals(name)) requests = val;
             }
@@ -482,6 +482,14 @@ public class DataAccessController {
     }
 
     // ==================== 辅助 ====================
+
+    private long toLong(Object v) {
+        if (v instanceof Number n) return n.longValue();
+        if (v instanceof String s) {
+            try { return Long.parseLong(s); } catch (NumberFormatException e) { return 0; }
+        }
+        return 0;
+    }
 
     private Set<String> extractTables(String sql) {
         try {
