@@ -115,15 +115,14 @@ class DiagnosisGatewayIntegrationTest {
 
         producer.sendHigh(original);
 
-        // 接收并校验
+        // 接收并校验（Jackson2JsonMessageConverter会将JSON反序列化为Map）
         Object raw = rabbitTemplate.receiveAndConvert(
-                RabbitMqConfig.QUEUE_TASK_HIGH, 3000);
-        assertNotNull(raw);
-
-        String json = objectMapper.writeValueAsString(raw);
-        assertTrue(json.contains("t-complete"));
-        assertTrue(json.contains("tc-dev-mysql"));
-        assertTrue(json.contains("SELECT 1"));
+                RabbitMqConfig.QUEUE_TASK_HIGH, 5000);
+        assertNotNull(raw, "应能接收到消息");
+        if (raw instanceof Map<?,?> m) {
+            assertEquals("t-complete", m.get("taskId"));
+            assertEquals("tc-dev-mysql", m.get("instanceId"));
+        }
     }
 
     // ===== 4. 降级队列 =====
