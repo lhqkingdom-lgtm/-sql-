@@ -1,0 +1,115 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: slow-sql-gateway
+
+  # ========== 平台自身数据库（诊断记录/RAG/采集记录） ==========
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/slow_sql_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 10000
+
+  # ========== RabbitMQ ==========
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:slowsql}
+    password: ${RABBITMQ_PASS:slowsql}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+
+  # ========== Redis ==========
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+
+# ========== 内部安全令牌（Python Agent 调用数据 API 必须携带） ==========
+gateway:
+  internal-token: ${INTERNAL_TOKEN:slow-sql-internal-token-v5}
+
+# ========== 慢SQL监控配置 ==========
+sql-monitor:
+  # 慢SQL采集
+  capture:
+    enabled: true
+    dedup-window-minutes: 30
+    max-per-round: 50            # 每轮采集最多投递数
+    filter:
+      min-query-time-sec: 0.5
+      min-rows-examined: 0
+      ignore-databases:
+        - information_schema
+        - performance_schema
+        - mysql
+        - sys
+    sources:
+      - type: slow_log_table
+        interval-seconds: 60
+        min-query-time-sec: 0.5
+        lookback-seconds: 600
+      - type: http_endpoint
+
+  # API限流
+  rate-limit:
+    max-per-minute: 100
+
+  # DDL预加载配置
+  pre-fetch:
+    enabled: true
+    max-single-table-ddl-length: 2000
+    max-total-ddl-length: 8000
+    timeout-seconds: 5
+    thread-pool-size: 4
+
+  # ========== 项目 ==========
+  projects:
+    - code: tongcheng-club
+      name: 同城俱乐部系统
+      instanceIds:
+        - tc-dev-mysql
+        - tc-prod-mysql
+
+    - code: payment-sys
+      name: 支付系统
+      instanceIds:
+        - pay-dev-mysql
+
+  # ========== MySQL实例（按host:port去重） ==========
+  instances:
+    - id: tc-dev-mysql
+      host: 10.0.1.1
+      port: 3306
+      username: root
+      password: 123456
+      defaultDatabase: tongcheng
+
+    - id: tc-prod-mysql
+      host: 10.0.2.1
+      port: 3306
+      username: root
+      password: 123456
+      defaultDatabase: tongcheng
+
+    - id: pay-dev-mysql
+      host: 10.0.3.1
+      port: 3306
+      username: root
+      password: 123456
+      defaultDatabase: payment
+
+# ========== 日志 ==========
+logging:
+  level:
+    com.slowsql: DEBUG
+    org.springframework.amqp: INFO
