@@ -61,7 +61,7 @@ class DiagnosisGatewayTest {
         producer.sendHigh(msg);
 
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.EXCHANGE), eq("task.high"), anyString());
+                eq(RabbitMqConfig.EXCHANGE), eq("task.high"), any(Map.class));
     }
 
     @Test
@@ -70,7 +70,7 @@ class DiagnosisGatewayTest {
         producer.sendNormal(msg);
 
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.EXCHANGE), eq("task.normal"), anyString());
+                eq(RabbitMqConfig.EXCHANGE), eq("task.normal"), any(Map.class));
     }
 
     // ===== 2. 降级 =====
@@ -78,7 +78,7 @@ class DiagnosisGatewayTest {
     @Test
     void send_shouldFallbackToRedisWhenRabbitDown() {
         doThrow(new AmqpException("connection refused"))
-                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), anyString());
+                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Map.class));
 
         Map<String, Object> msg = Map.of("taskId", "t3");
         producer.sendHigh(msg);

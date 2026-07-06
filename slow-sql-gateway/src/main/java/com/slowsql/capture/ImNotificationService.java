@@ -8,23 +8,36 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
-/** IM通知——企微/钉钉 Webhook，24h内同指纹不重复推送 */
+import java.time.Duration;
+
+/** IM通知——企微/钉钉 Webhook，24h内同指纹不重复推送（Redis SETEX防内存泄漏） */
 @Component
 public class ImNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(ImNotificationService.class);
-    private final Set<String> notifiedFps = ConcurrentHashMap.newKeySet();
+    private static final String DEDUP_PREFIX = "im:notified:";
+    private static final Duration DEDUP_TTL = Duration.ofHours(24);
+
+    private final StringRedisTemplate redis;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5)).build();
+
+    public ImNotificationService(StringRedisTemplate redis) {
+        this.redis = redis;
+    }
 
     /** 发送通知——同指纹24h内只推一次 */
     public void notify(String fingerprint, String sqlPreview, String content,
                        double queryTime, long rowsExamined, String db) {
-        if (!notifiedFps.add(fingerprint)) return;
+        try {
+            Boolean isNew = redis.opsForValue()
+                    .setIfAbsent(DEDUP_PREFIX + fingerprint, "1", DEDUP_TTL);
+            if (!Boolean.TRUE.equals(isNew)) return;
+        } catch (Exception e) {
+            // Redis挂了 → 保守：允许推送
+        }
 
         String msg = String.format("""
                 {

@@ -52,22 +52,16 @@ public class DiagnosisTaskProducer {
     }
 
     private void send(Map<String, Object> taskMsg, String routingKey) {
-        String json;
         try {
-            json = objectMapper.writeValueAsString(taskMsg);
-        } catch (JsonProcessingException e) {
-            log.error("任务消息序列化失败: {}", e.getMessage());
-            return;
-        }
-
-        try {
-            rabbitTemplate.convertAndSend(RabbitMqConfig.EXCHANGE, routingKey, json);
-
+            rabbitTemplate.convertAndSend(RabbitMqConfig.EXCHANGE, routingKey, taskMsg);
             log.debug("诊断任务已投递: routing={}", routingKey);
-
         } catch (AmqpException e) {
             log.warn("RabbitMQ 不可达，降级到 Redis: {}", e.getMessage());
-            fallbackToRedis(json);
+            try {
+                fallbackToRedis(objectMapper.writeValueAsString(taskMsg));
+            } catch (JsonProcessingException ex) {
+                log.error("降级序列化失败: {}", ex.getMessage());
+            }
         }
     }
 

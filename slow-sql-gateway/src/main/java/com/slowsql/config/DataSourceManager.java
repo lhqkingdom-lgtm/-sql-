@@ -60,9 +60,11 @@ public class DataSourceManager {
             if (ds != null) {
                 instancePoolMap.put(inst.getId(), ds);
                 templateMap.put(inst.getId(), new JdbcTemplate(ds));
+                // 监测池也复用或新建（每个实例独立监测池以便隔离）
                 reusedCount++;
                 log.info("实例 {} 复用连接池 {} (共 {} 个实例共享)",
                         inst.getId(), hostKey, countInstancesForPool(hostKey));
+                createMonitoringPool(inst);
                 continue;
             }
 
@@ -84,18 +86,7 @@ public class DataSourceManager {
                 instancePoolMap.put(inst.getId(), newDs);
                 templateMap.put(inst.getId(), new JdbcTemplate(newDs));
 
-                // 监测专用轻量池
-                HikariConfig monConfig = new HikariConfig();
-                monConfig.setJdbcUrl(inst.getJdbcUrl());
-                monConfig.setUsername(inst.getUsername());
-                monConfig.setPassword(inst.getPassword());
-                monConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
-                monConfig.setMaximumPoolSize(3);
-                monConfig.setConnectionTimeout(10000);
-                monConfig.setPoolName("mon-" + inst.getId());
-                HikariDataSource monDs = new HikariDataSource(monConfig);
-                monitorTemplateMap.put(inst.getId(), new JdbcTemplate(monDs));
-
+                createMonitoringPool(inst);
                 createdCount++;
                 log.info("连接池已创建: {} → {}", inst.getId(), hostKey);
 
@@ -171,6 +162,19 @@ public class DataSourceManager {
         return ready;
     }
 
+    private void createMonitoringPool(SqlMonitorProperties.InstanceConfig inst) {
+        com.zaxxer.hikari.HikariConfig monConfig = new com.zaxxer.hikari.HikariConfig();
+        monConfig.setJdbcUrl(inst.getJdbcUrl());
+        monConfig.setUsername(inst.getUsername());
+        monConfig.setPassword(inst.getPassword());
+        monConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        monConfig.setMaximumPoolSize(3);
+        monConfig.setConnectionTimeout(10000);
+        monConfig.setPoolName("mon-" + inst.getId());
+        com.zaxxer.hikari.HikariDataSource monDs = new com.zaxxer.hikari.HikariDataSource(monConfig);
+        monitorTemplateMap.put(inst.getId(), new JdbcTemplate(monDs));
+    }
+
     private int countInstancesForPool(String hostKey) {
         DataSource pool = poolMap.get(hostKey);
         return (int) instancePoolMap.values().stream().filter(pool::equals).count();
@@ -178,14 +182,19 @@ public class DataSourceManager {
 
     @PreDestroy
     public void shutdown() {
-        log.info("正在关闭 {} 个连接池...", poolMap.size());
+        log.info("正在关闭诊断连接池...", poolMap.size());
         poolMap.forEach((key, ds) -> {
+            try { ds.close(); log.info("诊断池已关闭: {}", key); }
+            catch (Exception e) { log.warn("关闭诊断池失败 [{}]: {}", key, e.getMessage()); }
+        });
+        log.info("正在关闭监测连接池...");
+        monitorTemplateMap.forEach((key, jt) -> {
             try {
-                ds.close();
-                log.info("连接池已关闭: {}", key);
-            } catch (Exception e) {
-                log.warn("关闭连接池失败 [{}]: {}", key, e.getMessage());
-            }
+                if (jt != null && jt.getDataSource() instanceof com.zaxxer.hikari.HikariDataSource ds) {
+                    ds.close();
+                    log.info("监测池已关闭: {}", key);
+                }
+            } catch (Exception e) { log.warn("关闭监测池失败 [{}]: {}", key, e.getMessage()); }
         });
         poolMap.clear();
         instancePoolMap.clear();

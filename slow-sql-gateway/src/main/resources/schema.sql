@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS diagnosis_record (
     created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME                   COMMENT '最后更新时间',
 
-    INDEX idx_task_id     (task_id),
+    UNIQUE INDEX idx_task_id (task_id),
     INDEX idx_session     (session_id),
     INDEX idx_instance    (instance_id),
     INDEX idx_status      (status),

@@ -50,7 +50,8 @@ public class DiagnosisResultConsumer {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> result = objectMapper.readValue(body, Map.class);
-            String taskId = (String) result.get("taskId");
+            Object tidObj = result.get("taskId");
+            String taskId = tidObj != null ? String.valueOf(tidObj) : null;
             String status = (String) result.get("status");
 
             if (taskId == null) {
@@ -79,8 +80,13 @@ public class DiagnosisResultConsumer {
             channel.basicAck(deliveryTag, false);
             log.info("诊断结果已处理: taskId={}, status={}", taskId, status);
 
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // 消息格式错误 → 不可恢复 → ACK丢弃 + 记日志
+            log.error("诊断结果消息格式错误，丢弃: {}", e.getMessage());
+            channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
-            log.error("处理诊断结果失败，requeue: {}", e.getMessage());
+            // DB写入失败等其他异常 → 可重试 → NACK requeue
+            log.warn("处理诊断结果异常，requeue: {}", e.getMessage());
             channel.basicNack(deliveryTag, false, true);
         }
     }

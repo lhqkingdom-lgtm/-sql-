@@ -2,7 +2,9 @@ package com.slowsql.api;
 
 import com.slowsql.capture.EventNormalizer;
 import com.slowsql.capture.SlowSqlEvent;
+import com.slowsql.config.AuditLogger;
 import com.slowsql.config.DataSourceManager;
+import com.slowsql.config.SqlMonitorProperties;
 import com.slowsql.gateway.DiagnosisTaskProducer;
 import com.slowsql.persistence.DiagnosisRecord;
 import com.slowsql.persistence.DiagnosisRecordRepository;
@@ -39,25 +41,35 @@ public class SqlAnalyzeController {
     private final RagRetriever ragRetriever;
     private final EventNormalizer eventNormalizer;
     private final StringRedisTemplate redis;
+    private final SqlMonitorProperties properties;
+    private final AuditLogger auditLogger;
 
     public SqlAnalyzeController(DiagnosisTaskProducer taskProducer,
                                  DataSourceManager dataSourceManager,
                                  DiagnosisRecordRepository recordRepository,
                                  RagRetriever ragRetriever,
                                  EventNormalizer eventNormalizer,
-                                 StringRedisTemplate redis) {
+                                 StringRedisTemplate redis,
+                                 SqlMonitorProperties properties,
+                                 AuditLogger auditLogger) {
         this.taskProducer = taskProducer;
         this.dataSourceManager = dataSourceManager;
         this.recordRepository = recordRepository;
         this.ragRetriever = ragRetriever;
         this.eventNormalizer = eventNormalizer;
         this.redis = redis;
+        this.properties = properties;
+        this.auditLogger = auditLogger;
     }
 
     @GetMapping("/projects")
     public ResponseEntity<?> projects() {
-        // 返回项目列表供前端级联选择
-        return ResponseEntity.ok(Map.of("projects", List.of())); // TODO: from properties
+        return ResponseEntity.ok(Map.of("projects",
+                properties.getProjects().stream().map(p -> Map.of(
+                    "code", p.getCode(),
+                    "name", p.getName(),
+                    "instanceIds", p.getInstanceIds()
+                )).toList()));
     }
 
     @PostMapping(value = "/analyze", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -120,7 +132,11 @@ public class SqlAnalyzeController {
         saveInitialRecord(taskId, sessionId, instanceId, request.projectCode(),
                 request.sql(), cleanSql, vr.tableNames(), event.getFingerprint());
 
-        // 12. 秒返
+        // 12. 审计日志
+        auditLogger.log(taskId, sessionId, instanceId, request.sql().length(),
+                !maskedSql.equals(cleanSql), vr.tableNames().toString(), 0, "SUBMITTED");
+
+        // 13. 秒返
         return ResponseEntity.accepted().body(SqlAnalyzeResponse.pending(taskId));
     }
 

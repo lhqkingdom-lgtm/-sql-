@@ -9,7 +9,7 @@ spring:
   datasource:
     url: ${MYSQL_URL:jdbc:mysql://localhost:3306/slow_sql_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:123456}
+    password: ${MYSQL_PASSWORD:ENC(encrypted_password)}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -34,8 +34,14 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:123456}
+      password: ${REDIS_PASSWORD:}
       database: ${REDIS_DB:2}
+
+# ========== Jasypt 加密配置 ==========
+jasypt:
+  encryptor:
+    password: ${JASYPT_ENCRYPTOR_PASSWORD:}
+    algorithm: PBEWITHHMACSHA512ANDAES_256
 
 # ========== 内部安全令牌（Python Agent 调用数据 API 必须携带） ==========
 gateway:
@@ -67,14 +73,6 @@ sql-monitor:
   rate-limit:
     max-per-minute: 100
 
-  # DDL预加载配置
-  pre-fetch:
-    enabled: true
-    max-single-table-ddl-length: 2000
-    max-total-ddl-length: 8000
-    timeout-seconds: 5
-    thread-pool-size: 4
-
   # ========== 项目 ==========
   projects:
     - code: tongcheng-club
@@ -94,21 +92,21 @@ sql-monitor:
       host: localhost
       port: 3306
       username: root
-      password: 123456
+      password: ${INSTANCE_PASSWORD:ENC(encrypted_password)}
       defaultDatabase: test_sql
 
     - id: tc-prod-mysql
       host: 10.0.2.1
       port: 3306
       username: root
-      password: 123456
+      password: ${INSTANCE_PASSWORD:ENC(encrypted_password)}
       defaultDatabase: test_sql
 
     - id: pay-dev-mysql
       host: 10.0.3.1
       port: 3306
       username: root
-      password: 123456
+      password: ${INSTANCE_PASSWORD:ENC(encrypted_password)}
       defaultDatabase: payment
 
 # ========== 日志 ==========

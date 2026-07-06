@@ -90,12 +90,11 @@ public class CompensateScheduler {
             List<String> dbTaskIds = recordRepository.findCompletedTaskIds(30);
             // 重建缺失的指纹缓存
             for (String taskId : dbTaskIds) {
-                String fpKey = "diagnosis:result:fp:" + taskId.hashCode();
-                if (fpKeys == null || !fpKeys.contains(fpKey)) {
-                    DiagnosisRecord r = recordRepository.findByTaskId(taskId);
-                    if (r != null && r.getFingerprint() != null && r.getReport() != null) {
-                        redis.opsForValue().set("diagnosis:result:fp:" + r.getFingerprint(),
-                                r.getReport(), java.time.Duration.ofMinutes(30));
+                DiagnosisRecord r = recordRepository.findByTaskId(taskId);
+                if (r != null && r.getFingerprint() != null && r.getReport() != null) {
+                    String fpKey = "diagnosis:result:fp:" + r.getFingerprint();
+                    if (fpKeys == null || !fpKeys.contains(fpKey)) {
+                        redis.opsForValue().set(fpKey, r.getReport(), java.time.Duration.ofMinutes(30));
                     }
                 }
             }

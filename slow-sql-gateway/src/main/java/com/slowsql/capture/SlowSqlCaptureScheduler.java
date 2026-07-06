@@ -24,7 +24,7 @@ public class SlowSqlCaptureScheduler {
     private final ImNotificationService notifier;
     private final EventNormalizer normalizer;
 
-    private final Map<String, LocalDateTime> lastCheckMap = new HashMap<>();
+    private final Map<String, LocalDateTime> lastCheckMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     public SlowSqlCaptureScheduler(DataSourceManager dataSourceManager,
                                     SqlMonitorProperties properties,

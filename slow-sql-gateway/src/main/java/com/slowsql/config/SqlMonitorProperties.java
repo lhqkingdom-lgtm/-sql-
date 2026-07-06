@@ -16,7 +16,6 @@ public class SqlMonitorProperties {
 
     private CaptureConfig capture = new CaptureConfig();
     private RateLimitConfig rateLimit = new RateLimitConfig();
-    private PreFetchConfig preFetch = new PreFetchConfig();
     private List<ProjectConfig> projects = new ArrayList<>();
     private List<InstanceConfig> instances = new ArrayList<>();
 
@@ -26,9 +25,6 @@ public class SqlMonitorProperties {
 
     public RateLimitConfig getRateLimit() { return rateLimit; }
     public void setRateLimit(RateLimitConfig rateLimit) { this.rateLimit = rateLimit; }
-
-    public PreFetchConfig getPreFetch() { return preFetch; }
-    public void setPreFetch(PreFetchConfig preFetch) { this.preFetch = preFetch; }
 
     public List<ProjectConfig> getProjects() { return projects; }
     public void setProjects(List<ProjectConfig> projects) { this.projects = projects; }
@@ -97,26 +93,6 @@ public class SqlMonitorProperties {
 
         public int getMaxPerMinute() { return maxPerMinute; }
         public void setMaxPerMinute(int maxPerMinute) { this.maxPerMinute = maxPerMinute; }
-    }
-
-    // ===== 预加载配置 =====
-    public static class PreFetchConfig {
-        private boolean enabled = true;
-        private int maxSingleTableDdlLength = 2000;
-        private int maxTotalDdlLength = 8000;
-        private int timeoutSeconds = 5;
-        private int threadPoolSize = 4;
-
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public int getMaxSingleTableDdlLength() { return maxSingleTableDdlLength; }
-        public void setMaxSingleTableDdlLength(int maxSingleTableDdlLength) { this.maxSingleTableDdlLength = maxSingleTableDdlLength; }
-        public int getMaxTotalDdlLength() { return maxTotalDdlLength; }
-        public void setMaxTotalDdlLength(int maxTotalDdlLength) { this.maxTotalDdlLength = maxTotalDdlLength; }
-        public int getTimeoutSeconds() { return timeoutSeconds; }
-        public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
-        public int getThreadPoolSize() { return threadPoolSize; }
-        public void setThreadPoolSize(int threadPoolSize) { this.threadPoolSize = threadPoolSize; }
     }
 
     // ===== 项目配置 =====

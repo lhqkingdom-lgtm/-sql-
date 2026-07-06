@@ -116,18 +116,7 @@ public class RabbitMqConfig {
         template.setMessageConverter(messageConverter());
         template.setExchange(EXCHANGE);
 
-        // Publisher Confirm
-        template.setConfirmCallback((correlationData, ack, cause) -> {
-            if (!ack && correlationData != null) {
-                // confirm 失败 → 降级处理（外部注入的回调）
-            }
-        });
-
-        // mandatory + ReturnCallback
-        template.setMandatory(true);
-        template.setReturnsCallback(returned -> {
-            // 消息无法路由到队列 → 降级处理
-        });
+        // Publisher Confirm + ReturnCallback 回调由 DiagnosisTaskProducer 注入
 
         return template;
     }

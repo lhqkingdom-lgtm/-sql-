@@ -47,12 +47,6 @@ public class DataAccessController {
 
     // ==================== 安全守卫 ====================
 
-    private void checkToken(String token) {
-        if (token == null || !token.equals(internalToken)) {
-            log.warn("数据API认证失败");
-        }
-    }
-
     private boolean isAuthorized(String token) {
         return token != null && token.equals(internalToken);
     }
@@ -107,7 +101,7 @@ public class DataAccessController {
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("获取DDL失败 [{}] {}: {}", instanceId, clean, e.getMessage());
-            return ResponseEntity.ok("错误：获取DDL失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：获取DDL失败 - ");
         }
     }
 
@@ -131,7 +125,7 @@ public class DataAccessController {
             return ResponseEntity.ok(plan);
         } catch (Exception e) {
             log.error("EXPLAIN失败 [{}]: {}", instanceId, e.getMessage());
-            return ResponseEntity.ok("错误：EXPLAIN失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：EXPLAIN失败 - ");
         }
     }
 
@@ -164,7 +158,7 @@ public class DataAccessController {
             }
             return ResponseEntity.ok(sb.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：获取统计信息失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：获取统计信息失败 - ");
         }
     }
 
@@ -185,7 +179,7 @@ public class DataAccessController {
             if (trx.isEmpty()) return ResponseEntity.ok("当前无锁等待或长事务。");
             return ResponseEntity.ok("检测到锁/长事务：\n" + trx.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：检查锁失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：检查锁失败 - ");
         }
     }
 
@@ -208,7 +202,7 @@ public class DataAccessController {
             }
             return ResponseEntity.ok(full);
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：获取InnoDB状态失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：获取InnoDB状态失败 - ");
         }
     }
 
@@ -234,7 +228,7 @@ public class DataAccessController {
             Map<String, Object> result = jt.queryForMap("SHOW GLOBAL VARIABLES LIKE '" + lower + "'");
             return ResponseEntity.ok(result.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：查询变量失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：查询变量失败 - ");
         }
     }
 
@@ -285,7 +279,7 @@ public class DataAccessController {
             else redundants.forEach(r -> report.append("\n⚠️ ").append(r));
             return ResponseEntity.ok(report.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：检查冗余索引失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：检查冗余索引失败 - ");
         }
     }
 
@@ -313,7 +307,7 @@ public class DataAccessController {
             String p2 = jt.queryForObject("EXPLAIN FORMAT=JSON " + optimized, String.class);
             return ResponseEntity.ok("【原始SQL】\n" + p1 + "\n\n【优化SQL】\n" + p2);
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：EXPLAIN对比失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：EXPLAIN对比失败 - ");
         }
     }
 
@@ -346,7 +340,7 @@ public class DataAccessController {
             }
             return ResponseEntity.ok(sb.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：慢日志统计失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：慢日志统计失败 - ");
         }
     }
 
@@ -380,7 +374,7 @@ public class DataAccessController {
             }
             return ResponseEntity.ok(report.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：索引检查失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：索引检查失败 - ");
         }
     }
 
@@ -405,7 +399,7 @@ public class DataAccessController {
             }
             return ResponseEntity.ok(report.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：类型检查失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：类型检查失败 - ");
         }
     }
 
@@ -430,7 +424,7 @@ public class DataAccessController {
             return ResponseEntity.ok(String.format("Buffer Pool命中率: %.1f%% | 磁盘读: %,d | 总请求: %,d",
                     hitRate, reads, requests));
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：查询失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：查询失败 - ");
         }
     }
 
@@ -452,7 +446,7 @@ public class DataAccessController {
             byCommand.forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append("\n"));
             return ResponseEntity.ok(sb.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：查询失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：查询失败 - ");
         }
     }
 
@@ -470,7 +464,7 @@ public class DataAccessController {
             Long actual = jt.queryForObject("SELECT COUNT(*) FROM (" + sql + ") AS _cnt", Long.class);
             return ResponseEntity.ok("实际行数: " + actual);
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：查询失败 - " + e.getMessage());
+            return ResponseEntity.ok("错误：查询失败 - ");
         }
     }
 
@@ -478,7 +472,7 @@ public class DataAccessController {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleNotFound(IllegalArgumentException e) {
-        return ResponseEntity.badRequest().body("[ERROR] 错误：" + e.getMessage());
+        return ResponseEntity.badRequest().body("[ERROR] 错误：");
     }
 
     // ==================== 辅助 ====================
