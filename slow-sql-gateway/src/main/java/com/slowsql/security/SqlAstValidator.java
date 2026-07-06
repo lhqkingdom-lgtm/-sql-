@@ -21,6 +21,9 @@ public final class SqlAstValidator {
      * 校验 SQL 是否为单条 SELECT，提取涉及的物理表名。
      */
     public static ValidationResult validateAndExtract(String sql) {
+        if (sql == null || sql.isBlank()) {
+            return new ValidationResult(false, "安全拦截：SQL 不能为空", List.of(), sql);
+        }
         try {
             Statements statements = CCJSqlParserUtil.parseStatements(sql);
             if (statements.getStatements().size() > 1) {
