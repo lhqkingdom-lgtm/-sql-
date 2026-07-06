@@ -14,7 +14,15 @@ from mq.publisher import ResultPublisher
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = ""  # 启动时从 main.py 注入
+SYSTEM_PROMPT = ""
+
+# 与 Java RabbitMqConfig 保持一致
+QUEUE_ARGS = {
+    "x-message-ttl": 1800000,
+    "x-dead-letter-exchange": "diagnosis.dlx",
+    "x-dead-letter-routing-key": "dlq.task",
+}
+FALLBACK_KEY = "diagnosis:fallback:queue"
 
 
 async def start_consumer(
@@ -34,9 +42,11 @@ async def start_consumer(
     # Exchange 绑定
     exchange = await channel.declare_exchange(
         "diagnosis.exchange", aio_pika.ExchangeType.TOPIC, durable=True)
-    high = await channel.declare_queue("diagnosis.task.high", durable=True)
+    high = await channel.declare_queue(
+        "diagnosis.task.high", durable=True, arguments=QUEUE_ARGS)
     await high.bind(exchange, routing_key="task.high")
-    normal = await channel.declare_queue("diagnosis.task.normal", durable=True)
+    normal = await channel.declare_queue(
+        "diagnosis.task.normal", durable=True, arguments=QUEUE_ARGS)
     await normal.bind(exchange, routing_key="task.normal")
 
     async def handle(message: aio_pika.IncomingMessage):
@@ -107,12 +117,11 @@ async def _process(message, agent_factory, redis, publisher):
 
 async def recover_fallback(redis: Redis, publisher: ResultPublisher):
     """每 5 分钟一次性 drain 全部降级队列积压"""
-    KEY = "diagnosis:fallback:queue"
     while True:
         try:
             count = 0
             while True:
-                msg_raw = await redis.lpop(KEY)
+                msg_raw = await redis.lpop(FALLBACK_KEY)
                 if not msg_raw:
                     break
                 try:
