@@ -1,4 +1,10 @@
 """Slow SQL Agent V5.0 — FastAPI 入口"""
+# RESP3 兼容 Redis 5.x——必须在任何 redis import 之前，同步+异步都要设
+import redis.connection
+import redis.asyncio.connection
+redis.connection.Connection.DEFAULT_PROTOCOL = 2
+redis.asyncio.connection.Connection.DEFAULT_PROTOCOL = 2
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -27,7 +33,7 @@ async def lifespan(app: FastAPI):
     logger.info("Agent starting...")
 
     # Redis
-    redis = Redis.from_url(settings.redis_url, decode_responses=True, protocol=2)
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
     # DataClient
     data_client = DataClient(settings)

@@ -79,3 +79,22 @@ mvn test -Dtest=DataSourceManagerIntegrationTest
 # 启动
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
+
+## 测试后清理（铁律）
+
+**启动任何进程测试完后，必须在同一个 turn 内关掉，不能留僵尸进程。**
+
+```powershell
+# 关 Java
+$p = (Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue).OwningProcess
+if ($p) { Stop-Process -Id $p -Force }
+
+# 关 Python
+$ports = @(8000, 8001, 8002)
+foreach ($port in $ports) {
+    $p = (Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue).OwningProcess
+    if ($p) { Stop-Process -Id $p -Force }
+}
+```
+
+**不关的后果：下次测试端口冲突、RMQ 队列被旧消费者抢占、Redis 连接泄漏。**

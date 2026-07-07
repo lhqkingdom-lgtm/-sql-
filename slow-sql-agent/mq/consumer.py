@@ -5,8 +5,8 @@ import logging
 from datetime import datetime
 
 import aio_pika
-import redis.exceptions
 from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from models import DiagnosisTask, DiagnosisResult
 from agent.callbacks import TokenBudgetExceeded, RepeatGuardTripped
@@ -133,7 +133,7 @@ async def recover_fallback(redis: Redis, publisher: ResultPublisher):
                     logger.warning("降级消息格式错误，跳过")
             if count > 0:
                 logger.info(f"降级队列恢复: {count} 条")
-        except redis.exceptions.ConnectionError:
+        except RedisConnectionError:
             pass  # Redis 暂时不可达，等下一轮
         except Exception as e:
             logger.warning(f"降级恢复异常: {e}")

@@ -1,4 +1,4 @@
-"""Agent 工厂：每次 task 创建独立的 Callback 实例，防跨 task 污染。"""
+"""Agent 工厂：每次 task 独立 Callback"""
 from langchain_classic.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -10,7 +10,7 @@ from agent.callbacks import TokenBudgetHandler, MetricsHandler, RepeatGuardHandl
 
 
 def create_agent_with_memory(settings: Settings):
-    """返回 (get_agent, get_metrics) ——每个 task 独立"""
+    """返回 make_agent(tools) → (runner, metrics)"""
 
     llm = ChatOpenAI(
         api_key=settings.deepseek_api_key,
@@ -36,8 +36,7 @@ def create_agent_with_memory(settings: Settings):
             ttl=3600,
         )
 
-    def make_agent(tools) -> tuple:
-        """每次调用创建全新 callback 实例——不跨 task 共享"""
+    def make_agent(tools):
         token_handler = TokenBudgetHandler(settings.agent_token_budget)
         metrics = MetricsHandler()
         repeat = RepeatGuardHandler()
@@ -54,10 +53,8 @@ def create_agent_with_memory(settings: Settings):
             verbose=False,
         )
         runner = RunnableWithMessageHistory(
-            executor,
-            _get_session_history,
-            input_messages_key="input",
-            history_messages_key="chat_history",
+            executor, _get_session_history,
+            input_messages_key="input", history_messages_key="chat_history",
         )
         return runner, metrics
 

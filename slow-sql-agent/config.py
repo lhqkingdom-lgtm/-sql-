@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     agent_memory_window: int = 20
 
     # Redis
-    redis_url: str = "redis://:123456@localhost:6379/2"
+    redis_url: str = "redis://:123456@localhost:6379/2?protocol=2"
 
     # RabbitMQ
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
