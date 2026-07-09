@@ -121,41 +121,62 @@ public class CapturedSqlRepository {
 
     // ===== Dashboard 聚合查询 =====
 
-    public int countToday() {
+    public int countToday() { return countToday(null); }
+    public int countToday(String projectCode) {
         try {
-            Integer count = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM captured_sql WHERE captured_at >= CURDATE()", Integer.class);
-            return count != null ? count : 0;
-        } catch (Exception e) {
-            return 0;
-        }
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql WHERE captured_at >= CURDATE()", Integer.class);
+            return jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql WHERE captured_at >= CURDATE() AND project_code = ?", Integer.class, projectCode);
+        } catch (Exception e) { return 0; }
     }
 
-    public int countTotal() {
+    public int countTotal() { return countTotal(null); }
+    public int countTotal(String projectCode) {
         try {
-            Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql", Integer.class);
-            return count != null ? count : 0;
-        } catch (Exception e) {
-            return 0;
-        }
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql", Integer.class);
+            return jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql WHERE project_code = ?", Integer.class, projectCode);
+        } catch (Exception e) { return 0; }
     }
 
-    public List<Map<String, Object>> countBySource() {
+    public List<Map<String, Object>> countBySource() { return countBySource(null); }
+    public List<Map<String, Object>> countBySource(String projectCode) {
         try {
-            return jdbc.queryForList(
-                    "SELECT source, COUNT(*) AS cnt FROM captured_sql GROUP BY source");
-        } catch (Exception e) {
-            return List.of();
-        }
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForList("SELECT source, COUNT(*) AS cnt FROM captured_sql GROUP BY source");
+            return jdbc.queryForList("SELECT source, COUNT(*) AS cnt FROM captured_sql WHERE project_code = ? GROUP BY source", projectCode);
+        } catch (Exception e) { return List.of(); }
     }
 
-    public List<CapturedSql> findTopFrequent(int limit) {
+    public List<CapturedSql> findTopFrequent(int limit) { return findTopFrequent(null, limit); }
+    public List<CapturedSql> findTopFrequent(String projectCode, int limit) {
+        try {
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.query("SELECT * FROM captured_sql ORDER BY occurrence_count DESC LIMIT ?", ROW_MAPPER, limit);
+            return jdbc.query("SELECT * FROM captured_sql WHERE project_code = ? ORDER BY occurrence_count DESC LIMIT ?", ROW_MAPPER, projectCode, limit);
+        } catch (Exception e) { return List.of(); }
+    }
+
+    // ===== 筛选查询 =====
+
+    public List<CapturedSql> findByProjectCode(String projectCode, int limit) {
         try {
             return jdbc.query(
-                    "SELECT * FROM captured_sql ORDER BY occurrence_count DESC LIMIT ?",
-                    ROW_MAPPER, limit);
-        } catch (Exception e) {
-            return List.of();
-        }
+                "SELECT * FROM captured_sql WHERE project_code = ? ORDER BY captured_at DESC LIMIT ?",
+                ROW_MAPPER, projectCode, limit);
+        } catch (Exception e) { return List.of(); }
+    }
+
+    public List<CapturedSql> findByFilters(String projectCode, String instanceId, String severity, int limit) {
+        try {
+            StringBuilder sql = new StringBuilder("SELECT * FROM captured_sql WHERE 1=1");
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
+            if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
+            sql.append(" ORDER BY captured_at DESC LIMIT ?");
+            params.add(limit);
+            return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());
+        } catch (Exception e) { return List.of(); }
     }
 }

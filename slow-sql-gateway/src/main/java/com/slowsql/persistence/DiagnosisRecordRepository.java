@@ -146,6 +146,37 @@ public class DiagnosisRecordRepository {
         }
     }
 
+    /** 查询诊断历史（可筛选项目/实例） */
+    public List<DiagnosisRecord> findHistory(String projectCode, String instanceId, int limit) {
+        try {
+            StringBuilder sql = new StringBuilder("SELECT * FROM diagnosis_record WHERE 1=1");
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
+            if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            sql.append(" ORDER BY created_at DESC LIMIT ?");
+            params.add(limit);
+            return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());
+        } catch (Exception e) { return List.of(); }
+    }
+
+    /** 统计诊断数 */
+    public int countByProject(String projectCode) {
+        try {
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForObject("SELECT COUNT(*) FROM diagnosis_record", Integer.class);
+            return jdbc.queryForObject("SELECT COUNT(*) FROM diagnosis_record WHERE project_code = ?", Integer.class, projectCode);
+        } catch (Exception e) { return 0; }
+    }
+
+    /** P0 严重度计数 */
+    public int countP0(String projectCode) {
+        try {
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForObject("SELECT COUNT(*) FROM diagnosis_record WHERE status IN ('COMPLETED','FAILED') AND report IS NOT NULL", Integer.class);
+            return jdbc.queryForObject("SELECT COUNT(*) FROM diagnosis_record WHERE project_code = ? AND status IN ('COMPLETED','FAILED') AND report IS NOT NULL", Integer.class, projectCode);
+        } catch (Exception e) { return 0; }
+    }
+
     /**
      * 清理过期记录。
      */

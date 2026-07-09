@@ -2,6 +2,7 @@ package com.slowsql.dashboard;
 
 import com.slowsql.capture.CapturedSql;
 import com.slowsql.capture.CapturedSqlRepository;
+import com.slowsql.persistence.DiagnosisRecordRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,25 +20,27 @@ class DashboardControllerTest {
 
     private MockMvc mvc;
     private CapturedSqlRepository repository;
+    private DiagnosisRecordRepository diagnosisRepo;
 
     @BeforeEach
     void setUp() {
         repository = mock(CapturedSqlRepository.class);
-        DashboardController controller = new DashboardController(repository);
+        diagnosisRepo = mock(DiagnosisRecordRepository.class);
+        DashboardController controller = new DashboardController(repository, diagnosisRepo);
         mvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
     @Test
     void stats_shouldReturnDashboardData() throws Exception {
-        when(repository.countToday()).thenReturn(42);
-        when(repository.countTotal()).thenReturn(1024);
-        when(repository.countBySource()).thenReturn(List.of(
+        when(repository.countToday(any())).thenReturn(42);
+        when(repository.countTotal(any())).thenReturn(1024);
+        when(repository.countBySource(any())).thenReturn(List.of(
                 Map.of("source", "slow_log_table", "cnt", 1000L),
                 Map.of("source", "manual", "cnt", 24L)));
         CapturedSql top = new CapturedSql();
         top.setSqlText("SELECT * FROM big_table");
         top.setOccurrenceCount(99);
-        when(repository.findTopFrequent(5)).thenReturn(List.of(top));
+        when(repository.findTopFrequent(any(), eq(5))).thenReturn(List.of(top));
 
         mvc.perform(get("/api/dashboard/stats"))
                 .andExpect(status().isOk())
@@ -49,10 +52,10 @@ class DashboardControllerTest {
 
     @Test
     void stats_shouldHandleEmptyData() throws Exception {
-        when(repository.countToday()).thenReturn(0);
-        when(repository.countTotal()).thenReturn(0);
-        when(repository.countBySource()).thenReturn(List.of());
-        when(repository.findTopFrequent(5)).thenReturn(List.of());
+        when(repository.countToday(any())).thenReturn(0);
+        when(repository.countTotal(any())).thenReturn(0);
+        when(repository.countBySource(any())).thenReturn(List.of());
+        when(repository.findTopFrequent(any(), eq(5))).thenReturn(List.of());
 
         mvc.perform(get("/api/dashboard/stats"))
                 .andExpect(status().isOk())

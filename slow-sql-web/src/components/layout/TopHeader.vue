@@ -1,61 +1,62 @@
 <template>
   <div class="top-header">
     <div class="header-left">
-      <h1 class="app-title">慢SQL智能诊断平台</h1>
+      <h1 class="app-title">慢SQL诊断平台</h1>
       <span class="version-tag">V5.0</span>
+    </div>
+    <div class="header-center">
+      <el-select
+        v-model="store.selectedProjectCode"
+        @change="store.selectProject($event)"
+        placeholder="选择项目"
+        size="default"
+        class="project-switcher"
+      >
+        <el-option v-for="p in store.projects" :key="p.code" :label="p.name" :value="p.code" />
+      </el-select>
+      <span class="project-meta" v-if="store.selectedProject">
+        实例: {{ store.selectedProjectInstances.join(', ') }}
+      </span>
     </div>
     <div class="header-right">
       <span class="health-dot" :class="store.healthStatus">
-        {{ store.healthStatus === 'up' ? '●' : store.healthStatus === 'down' ? '●' : '○' }}
+        {{ store.healthStatus === 'up' ? '●' : '○' }}
       </span>
-      <span class="health-label">{{ healthLabel }}</span>
       <span class="time">{{ now }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 
 const store = useAppStore()
 const now = ref('')
-
-function updateTime() {
-  now.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
-}
-
 let timer = null
-onMounted(() => { updateTime(); timer = setInterval(updateTime, 1000) })
+onMounted(() => {
+  store.fetchProjects()
+  store.fetchInstancesHealth()
+  store.checkHealth()
+  updateTime()
+  timer = setInterval(updateTime, 1000)
+})
 onUnmounted(() => clearInterval(timer))
 
-const healthLabel = computed(() => {
-  switch (store.healthStatus) {
-    case 'up': return '服务正常'
-    case 'down': return '服务异常'
-    default: return '检测中...'
-  }
-})
+function updateTime() { now.value = new Date().toLocaleTimeString('zh-CN', { hour12: false }) }
 </script>
 
 <style scoped>
-.top-header {
-  width: 100%; display: flex; justify-content: space-between; align-items: center;
-}
-.header-left { display: flex; align-items: center; gap: 10px; }
-.app-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-.version-tag {
-  font-size: 11px; background: var(--accent-blue); color: #fff;
-  padding: 1px 6px; border-radius: 4px; font-weight: 500;
-}
-.header-right { display: flex; align-items: center; gap: 8px; }
+.top-header { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.app-title { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.version-tag { font-size: 11px; background: var(--accent-blue); color: #fff; padding: 1px 6px; border-radius: 4px; }
+.header-center { display: flex; align-items: center; gap: 12px; flex: 1; justify-content: center; }
+.project-switcher { width: 200px; }
+.project-meta { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .health-dot { font-size: 12px; }
 .health-dot.up { color: var(--accent-green); }
-.health-dot.down { color: var(--accent-red); }
-.health-dot.unknown { color: var(--text-muted); }
-.health-label { font-size: 12px; color: var(--text-secondary); }
-.time {
-  font-family: var(--font-mono); font-size: 13px;
-  color: var(--text-muted); margin-left: 12px;
-}
+.health-dot.down, .health-dot.unknown { color: var(--accent-red); }
+.time { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
 </style>

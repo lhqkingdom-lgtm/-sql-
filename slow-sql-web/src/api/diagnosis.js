@@ -8,8 +8,7 @@ import { ElMessage } from 'element-plus'
  * @returns {EventSource}
  */
 export function createEventSource(taskId, handlers) {
-  const base = import.meta.env.VITE_API_BASE_URL || ''
-  const url = `${base}/api/sql/stream/${taskId}`
+  const url = `/api/sql/stream/${taskId}`
   const es = new EventSource(url)
 
   es.addEventListener('diagnosis-complete', (e) => {

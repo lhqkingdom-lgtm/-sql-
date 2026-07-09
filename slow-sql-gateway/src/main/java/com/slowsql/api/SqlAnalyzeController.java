@@ -178,6 +178,56 @@ public class SqlAnalyzeController {
         }
     }
 
+    /** 实例健康 */
+    @GetMapping("/instances/health")
+    public ResponseEntity<?> instancesHealth() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (SqlMonitorProperties.InstanceConfig inst : properties.getInstances()) {
+            Map<String, Object> status = new LinkedHashMap<>();
+            status.put("instanceId", inst.getId());
+            status.put("host", inst.getHost() + ":" + inst.getPort());
+            status.put("projectCode", dataSourceManager.findProjectCode(inst.getId()));
+            try { status.put("reachable", dataSourceManager.validateConnection(inst.getId())); }
+            catch (Exception e) { status.put("reachable", false); }
+            result.add(status);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    /** 诊断历史 */
+    @GetMapping("/history")
+    public ResponseEntity<?> history(@RequestParam(required = false) String projectCode,
+                                      @RequestParam(required = false) String instanceId,
+                                      @RequestParam(defaultValue = "20") int limit) {
+        List<com.slowsql.persistence.DiagnosisRecord> records = recordRepository.findHistory(projectCode, instanceId, limit);
+        return ResponseEntity.ok(records.stream().map(r -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("taskId", r.getTaskId()); m.put("projectCode", r.getProjectCode());
+            m.put("instanceId", r.getInstanceId());
+            m.put("sqlPreview", r.getOriginalSql() != null && r.getOriginalSql().length() > 100
+                    ? r.getOriginalSql().substring(0, 100) + "..." : r.getOriginalSql());
+            m.put("status", r.getStatus()); m.put("source", r.getSource());
+            m.put("durationMs", r.getDurationMs()); m.put("toolCallCount", r.getToolCallCount());
+            m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
+            return m;
+        }).toList());
+    }
+
+    /** 诊断详情 */
+    @GetMapping("/history/{taskId}")
+    public ResponseEntity<?> historyDetail(@PathVariable String taskId) {
+        com.slowsql.persistence.DiagnosisRecord r = recordRepository.findByTaskId(taskId);
+        if (r == null) return ResponseEntity.notFound().build();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("taskId", r.getTaskId()); m.put("projectCode", r.getProjectCode());
+        m.put("instanceId", r.getInstanceId()); m.put("originalSql", r.getOriginalSql());
+        m.put("report", r.getReport()); m.put("status", r.getStatus());
+        m.put("durationMs", r.getDurationMs()); m.put("toolCallCount", r.getToolCallCount());
+        m.put("source", r.getSource()); m.put("fingerprint", r.getFingerprint());
+        m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
+        return ResponseEntity.ok(m);
+    }
+
     private ResponseEntity<?> badRequest(String msg, String code) {
         return ResponseEntity.badRequest().body(
                 new SqlAnalyzeResponse(null, null, null, msg, code));
