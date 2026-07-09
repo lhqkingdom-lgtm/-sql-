@@ -6,14 +6,14 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # LLM
     deepseek_api_key: str = ""
-    deepseek_model: str = "deepseek-v4-pro"
+    deepseek_model: str = "deepseek-chat"
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     llm_temperature: float = 0.1
     llm_timeout: int = 120
     llm_max_retries: int = 1
 
     # Java Gateway
-    java_gateway_base_url: str = "http://localhost:8080/api/data"
+    java_gateway_base_url: str = "http://localhost:8081/api/data"
     java_gateway_token: str = "slow-sql-internal-token-v5"
     java_gateway_timeout: int = 10
 

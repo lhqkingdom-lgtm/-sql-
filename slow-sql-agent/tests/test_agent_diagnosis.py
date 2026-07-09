@@ -293,7 +293,7 @@ class TestAgentDiagnosisQuality:
         assert s.agent_max_iterations == 15
         assert s.agent_token_budget == 30000
         assert s.llm_temperature == 0.1
-        assert s.deepseek_model == "deepseek-v4-pro"
+        assert s.deepseek_model == "deepseek-chat"
 
     def test_temperature_is_low_for_determinism(self):
         """temperature 应该很低（诊断需要确定性）"""
