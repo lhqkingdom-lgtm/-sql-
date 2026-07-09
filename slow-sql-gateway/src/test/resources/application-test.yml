@@ -1,0 +1,12 @@
+# ========== 集成测试配置 ==========
+# 覆盖默认 Redis 密码（本地 Redis 需要密码认证）
+
+spring:
+  data:
+    redis:
+      password: ${REDIS_PASSWORD:123456}
+      database: 2  # 测试用独立 db，避免污染开发数据
+
+logging:
+  level:
+    com.slowsql: INFO  # 测试环境减少日志噪音
