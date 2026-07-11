@@ -15,19 +15,44 @@
             <span class="project-code">{{ p.projectCode }}</span>
           </div>
           <div class="card-center">
-            <div v-for="inst in p.instances" :key="inst.instanceId" class="instance-row">
-              <span class="dot" :class="inst.reachable ? 'online' : 'offline'"></span>
-              <span class="instance-id">{{ inst.instanceId }}</span>
-              <el-tag size="small" :type="inst.reachable ? 'success' : 'danger'">
-                {{ inst.reachable ? '在线' : '离线' }}
-              </el-tag>
-              <span v-if="inst.lastCollectAt" class="meta">
-                上次采集: {{ inst.lastCollectAt?.substring(0,19) }}
-              </span>
-              <span v-if="inst.totalCollected > 0" class="meta">
-                已采集: {{ inst.totalCollected }} 条
-              </span>
-              <span v-if="inst.lastError" class="meta error">{{ inst.lastError }}</span>
+            <div v-for="inst in p.instances" :key="inst.instanceId" class="instance-block">
+              <div class="instance-row">
+                <span class="dot" :class="inst.reachable ? 'online' : 'offline'"></span>
+                <span class="instance-id">{{ inst.instanceId }}</span>
+                <el-tag size="small" :type="inst.reachable ? 'success' : 'danger'">
+                  {{ inst.reachable ? '在线' : '离线' }}
+                </el-tag>
+                <span v-if="inst.lastCollectAt" class="meta">
+                  上次: {{ inst.lastCollectAt?.substring(0,19) }}
+                </span>
+                <span v-if="inst.totalCollected > 0" class="meta">
+                  {{ inst.totalCollected }}条
+                </span>
+                <span v-if="inst.lastError" class="meta error">{{ inst.lastError }}</span>
+              </div>
+              <div class="source-row">
+                <el-checkbox
+                  v-model="inst._sources"
+                  label="slow_log_table"
+                  size="small"
+                  :disabled="p._saving"
+                  @change="saveSources(inst)"
+                >慢日志表</el-checkbox>
+                <el-checkbox
+                  v-model="inst._sources"
+                  label="slow_log_file"
+                  size="small"
+                  :disabled="p._saving"
+                  @change="saveSources(inst)"
+                >慢日志文件</el-checkbox>
+                <el-checkbox
+                  v-model="inst._sources"
+                  label="http_endpoint"
+                  size="small"
+                  :disabled="p._saving"
+                  @change="saveSources(inst)"
+                >HTTP端点</el-checkbox>
+              </div>
             </div>
           </div>
           <div class="card-right">
@@ -59,11 +84,37 @@ async function load() {
     projects.value = (data || []).map((p) => ({
       ...p,
       _enabled: p.instances?.some((i) => i.enabled) || false,
+      _saving: false,
     }))
+    // 加载每个实例的采集源配置
+    for (const p of projects.value) {
+      for (const inst of p.instances || []) {
+        try {
+          const src = await http.get(`/capture/${inst.instanceId}/sources`)
+          const raw = src.sources || []
+          // "all" → all three sources enabled
+          inst._sources = raw.includes('all')
+            ? ['slow_log_table', 'slow_log_file', 'http_endpoint']
+            : raw
+        } catch {
+          inst._sources = ['slow_log_table']
+        }
+      }
+    }
   } catch (e) {
     console.error('加载轮询状态失败:', e.message)
   } finally {
     loading.value = false
+  }
+}
+
+async function saveSources(inst) {
+  try {
+    const allThree = ['slow_log_table', 'slow_log_file', 'http_endpoint']
+    const send = (inst._sources || []).length >= 3 ? ['all'] : (inst._sources || [])
+    await http.put(`/capture/${inst.instanceId}/sources`, { sources: send })
+  } catch (e) {
+    console.error('保存采集源失败:', e.message)
   }
 }
 
@@ -108,4 +159,7 @@ onMounted(load)
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.online { background: #67c23a; }
 .dot.offline { background: #c0c4cc; }
+.instance-block { padding: 8px 0; border-bottom: 1px solid var(--el-border-color-lighter, #eee); }
+.instance-block:last-child { border-bottom: none; }
+.source-row { display: flex; gap: 12px; margin-top: 8px; padding-left: 20px; }
 </style>
