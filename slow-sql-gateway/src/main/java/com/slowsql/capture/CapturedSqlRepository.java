@@ -229,13 +229,14 @@ public class CapturedSqlRepository {
         } catch (Exception e) { return List.of(); }
     }
 
-    public List<CapturedSql> findByFilters(String projectCode, String instanceId, String severity,
-                                            String startTime, String endTime, int offset, int size) {
+    public List<CapturedSql> findByFilters(String projectCode, String instanceId, String databaseName,
+                                            String severity, String startTime, String endTime, int offset, int size) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM captured_sql WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
             if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            if (databaseName != null && !databaseName.isEmpty()) { sql.append(" AND database_name = ?"); params.add(databaseName); }
             if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }
@@ -245,13 +246,14 @@ public class CapturedSqlRepository {
         } catch (Exception e) { return List.of(); }
     }
 
-    public int countByFilters(String projectCode, String instanceId, String severity,
-                              String startTime, String endTime) {
+    public int countByFilters(String projectCode, String instanceId, String databaseName,
+                              String severity, String startTime, String endTime) {
         try {
             StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM captured_sql WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
             if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            if (databaseName != null && !databaseName.isEmpty()) { sql.append(" AND database_name = ?"); params.add(databaseName); }
             if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }

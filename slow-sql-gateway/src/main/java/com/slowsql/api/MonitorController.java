@@ -29,13 +29,14 @@ public class MonitorController {
                                       @RequestParam(defaultValue = "20") int size,
                                       @RequestParam(required = false) String projectCode,
                                       @RequestParam(required = false) String instanceId,
+                                      @RequestParam(required = false) String databaseName,
                                       @RequestParam(required = false) String severity,
                                       @RequestParam(required = false) String startTime,
                                       @RequestParam(required = false) String endTime) {
         int offset = (page - 1) * size;
-        List<CapturedSql> list = repository.findByFilters(projectCode, instanceId, severity,
+        List<CapturedSql> list = repository.findByFilters(projectCode, instanceId, databaseName, severity,
                 startTime, endTime, offset, size);
-        int total = repository.countByFilters(projectCode, instanceId, severity, startTime, endTime);
+        int total = repository.countByFilters(projectCode, instanceId, databaseName, severity, startTime, endTime);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("records", list.stream().map(this::toMap).toList());
         result.put("total", total);

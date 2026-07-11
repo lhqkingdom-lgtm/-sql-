@@ -39,6 +39,22 @@
               :value="p.code"
             />
           </el-select>
+          <el-select
+            v-model="selectedDb"
+            placeholder="全部库"
+            size="large"
+            clearable
+            @change="switchDb"
+            style="width: 160px"
+          >
+            <el-option label="全部库" value="" />
+            <el-option
+              v-for="db in app.databases"
+              :key="db"
+              :label="db"
+              :value="db"
+            />
+          </el-select>
           <span v-if="onlineCount > 0" class="instance-badge">
             <span class="dot online"></span>
             {{ onlineCount }} 实例在线
@@ -72,6 +88,7 @@ import { Edit, Switch, Document, Clock, Collection } from '@element-plus/icons-v
 const app = useAppStore()
 const router = useRouter()
 const projectCode = ref('')
+const selectedDb = ref('')
 const isDark = ref(true)
 
 const navRoutes = router.options.routes.filter((r) => r.meta?.title)
@@ -81,7 +98,12 @@ const onlineCount = computed(
 )
 
 function switchProject(code) {
+  selectedDb.value = ''
   app.setProject(code)
+}
+
+function switchDb(db) {
+  app.currentDatabase = db || ''
 }
 
 onMounted(() => {

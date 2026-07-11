@@ -83,6 +83,7 @@ async function load() {
   loading.value = true
   try {
     const params = { page: page.value, size: size.value, projectCode: app.currentProject }
+    if (app.currentDatabase) params.databaseName = app.currentDatabase
     if (severity.value) params.severity = severity.value
     if (timeRange.value) { params.startTime = timeRange.value[0]; params.endTime = timeRange.value[1] }
     const resp = await http.get('/monitor/records', { params })
