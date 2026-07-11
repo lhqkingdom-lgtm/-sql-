@@ -104,6 +104,10 @@ public class DiagnosisResultConsumer {
             String src = result.get("source") instanceof String s ? s : "auto";
             String report = result.get("report") instanceof String s ? s : null;
 
+            // 从采集记录获取原始SQL
+            com.slowsql.capture.CapturedSql captured = !finger.isEmpty() ? capturedRepo.findByFingerprint(finger) : null;
+            String originalSql = captured != null ? captured.getSqlText() : "";
+
             DiagnosisRecord record = recordRepository.findByTaskId(taskId);
             if (record == null) {
                 record = new DiagnosisRecord();
@@ -113,8 +117,8 @@ public class DiagnosisResultConsumer {
                 record.setProjectCode(pcode);
                 record.setSource(src);
                 record.setFingerprint(finger);
-                record.setOriginalSql("");
-                record.setCleanSql("");
+                record.setOriginalSql(originalSql);
+                record.setCleanSql(originalSql);
                 record.setCreatedAt(LocalDateTime.now());
             } else {
                 if (!iid.isEmpty()) record.setInstanceId(iid);

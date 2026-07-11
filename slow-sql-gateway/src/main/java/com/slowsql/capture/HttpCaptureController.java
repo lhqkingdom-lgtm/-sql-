@@ -122,6 +122,7 @@ public class HttpCaptureController implements CaptureSource {
                 msg.put("instanceId", captured.getInstanceId());
                 msg.put("projectCode", captured.getProjectCode());
                 msg.put("enrichedPrompt", SlowSqlCaptureRouter.buildDiagnosisContext(event));
+                msg.put("originalSql", captured.getSqlText());
                 msg.put("fingerprint", captured.getFingerprint());
                 msg.put("source", captured.getSource());
                 msg.put("timestamp", LocalDateTime.now().toString());
