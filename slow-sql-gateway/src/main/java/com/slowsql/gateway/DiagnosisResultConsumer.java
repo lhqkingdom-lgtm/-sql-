@@ -2,6 +2,8 @@ package com.slowsql.gateway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
+import com.slowsql.capture.CapturedSql;
+import com.slowsql.capture.CapturedSqlRepository;
 import com.slowsql.config.RabbitMqConfig;
 import com.slowsql.persistence.DiagnosisRecord;
 import com.slowsql.persistence.DiagnosisRecordRepository;
@@ -32,13 +34,16 @@ public class DiagnosisResultConsumer {
 
     private final StringRedisTemplate redis;
     private final DiagnosisRecordRepository recordRepository;
+    private final CapturedSqlRepository capturedRepo;
     private final ObjectMapper objectMapper;
 
     public DiagnosisResultConsumer(StringRedisTemplate redis,
                                     DiagnosisRecordRepository recordRepository,
+                                    CapturedSqlRepository capturedRepo,
                                     ObjectMapper objectMapper) {
         this.redis = redis;
         this.recordRepository = recordRepository;
+        this.capturedRepo = capturedRepo;
         this.objectMapper = objectMapper;
     }
 
@@ -93,19 +98,50 @@ public class DiagnosisResultConsumer {
 
     private void updateRecord(String taskId, Map<String, Object> result) {
         try {
+            String finger = result.get("fingerprint") instanceof String s ? s : "";
+            String iid = result.get("instanceId") instanceof String s ? s : "";
+            String pcode = result.get("projectCode") instanceof String s ? s : "";
+            String src = result.get("source") instanceof String s ? s : "auto";
+            String report = result.get("report") instanceof String s ? s : null;
+
             DiagnosisRecord record = recordRepository.findByTaskId(taskId);
-            if (record != null) {
-                record.setStatus((String) result.getOrDefault("status", DiagnosisRecord.STATUS_FAILED));
-                record.setReport((String) result.get("report"));
-                record.setErrorMessage((String) result.get("error"));
-                if (result.get("durationMs") instanceof Number n) {
-                    record.setDurationMs(n.longValue());
+            if (record == null) {
+                record = new DiagnosisRecord();
+                record.setTaskId(taskId);
+                record.setSessionId(taskId);
+                record.setInstanceId(iid);
+                record.setProjectCode(pcode);
+                record.setSource(src);
+                record.setFingerprint(finger);
+                record.setOriginalSql("");
+                record.setCleanSql("");
+                record.setCreatedAt(LocalDateTime.now());
+            } else {
+                if (!iid.isEmpty()) record.setInstanceId(iid);
+                if (!pcode.isEmpty()) record.setProjectCode(pcode);
+                if (!src.isEmpty()) record.setSource(src);
+                if (!finger.isEmpty()) record.setFingerprint(finger);
+            }
+            record.setStatus((String) result.getOrDefault("status", DiagnosisRecord.STATUS_FAILED));
+            if (report != null) record.setReport(report);
+            if (result.get("error") instanceof String s) record.setErrorMessage(s);
+            if (result.get("durationMs") instanceof Number n) record.setDurationMs(n.longValue());
+            if (result.get("toolCallCount") instanceof Number n) record.setToolCallCount(n.intValue());
+            record.setUpdatedAt(LocalDateTime.now());
+            recordRepository.save(record);
+
+            // 回写 captured_sql.diagnosis_report
+            if (!finger.isEmpty() && report != null) {
+                try {
+                    com.slowsql.capture.CapturedSql cs = capturedRepo.findByFingerprint(finger);
+                    if (cs != null) {
+                        cs.setDiagnosisReport(report);
+                        capturedRepo.upsert(cs);
+                        log.info("诊断报告已回写 captured_sql: fingerprint={}", finger.substring(0, 8));
+                    }
+                } catch (Exception e) {
+                    log.debug("回写 captured_sql 失败: {}", e.getMessage());
                 }
-                if (result.get("toolCallCount") instanceof Number n) {
-                    record.setToolCallCount(n.intValue());
-                }
-                record.setUpdatedAt(LocalDateTime.now());
-                recordRepository.save(record);
             }
         } catch (Exception e) {
             log.warn("更新诊断记录失败 (不影响主流程): {}", e.getMessage());

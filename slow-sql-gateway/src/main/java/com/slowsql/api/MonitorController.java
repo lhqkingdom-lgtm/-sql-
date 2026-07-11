@@ -19,14 +19,28 @@ public class MonitorController {
     public ResponseEntity<?> records(@RequestParam(defaultValue = "50") int limit,
                                       @RequestParam(required = false) String projectCode,
                                       @RequestParam(required = false) String instanceId,
-                                      @RequestParam(required = false) String severity) {
+                                      @RequestParam(required = false) String severity,
+                                      @RequestParam(required = false) String startTime,
+                                      @RequestParam(required = false) String endTime) {
         List<CapturedSql> list;
-        if (projectCode != null || instanceId != null || severity != null) {
-            list = repository.findByFilters(projectCode, instanceId, severity, limit);
+        boolean hasFilter = (projectCode != null && !projectCode.isEmpty())
+                         || (instanceId != null && !instanceId.isEmpty())
+                         || (severity != null && !severity.isEmpty())
+                         || (startTime != null && !startTime.isEmpty())
+                         || (endTime != null && !endTime.isEmpty());
+        if (hasFilter) {
+            list = repository.findByFilters(projectCode, instanceId, severity, startTime, endTime, limit);
         } else {
             list = repository.findAll(limit);
         }
         return ResponseEntity.ok(list.stream().map(this::toMap).toList());
+    }
+
+    /** 指纹聚合视图 */
+    @GetMapping("/aggregated")
+    public ResponseEntity<?> aggregated(@RequestParam(required = false) String projectCode,
+                                         @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(repository.aggregatedByFingerprint(projectCode, limit));
     }
 
     @PostMapping("/records/delete")

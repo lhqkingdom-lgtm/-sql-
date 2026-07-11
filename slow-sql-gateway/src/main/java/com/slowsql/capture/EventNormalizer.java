@@ -24,7 +24,7 @@ public class EventNormalizer {
         event.setSourceDetail("mysql.slow_log@" + instanceId);
         event.setInstanceId(instanceId);
         event.setProjectCode(projectCode);
-        event.setSqlText((String) row.get("sql_text"));
+        event.setSqlText(toString(row.get("sql_text")));
         event.setCapturedAt(toLocalDateTime(row.get("start_time")));
 
         SlowSqlEvent.EventMetrics m = new SlowSqlEvent.EventMetrics();
@@ -85,8 +85,19 @@ public class EventNormalizer {
 
     // ===== 辅助 =====
 
+    private String toString(Object v) {
+        if (v instanceof String s) return s;
+        if (v instanceof byte[] bytes) return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        if (v != null) return v.toString();
+        return null;
+    }
+
     private double toDouble(Object v) {
         if (v instanceof Number n) return n.doubleValue();
+        if (v instanceof java.sql.Time t) {
+            // java.sql.Time 表示时长(HH:MM:SS)，直接解析时分秒
+            return t.getHours() * 3600.0 + t.getMinutes() * 60.0 + t.getSeconds();
+        }
         if (v instanceof String s) {
             try { return Double.parseDouble(s); } catch (NumberFormatException e) { return 0; }
         }

@@ -94,7 +94,9 @@ public class DataAccessController {
 
         try {
             JdbcTemplate jt = getTemplate(instanceId);
+            jt.setQueryTimeout(5);
             Map<String, Object> row = jt.queryForMap("SHOW CREATE TABLE " + clean);
+            jt.setQueryTimeout(0);
             Object ddl = row.get("Create Table");
             String result = ddl != null ? ddl.toString() : "错误：未返回建表语句。";
             ddlCache.put(instanceId, clean, result);

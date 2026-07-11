@@ -167,13 +167,57 @@ public class CapturedSqlRepository {
         } catch (Exception e) { return List.of(); }
     }
 
-    public List<CapturedSql> findByFilters(String projectCode, String instanceId, String severity, int limit) {
+    /** 指纹聚合——按 fingerprint 分组，显示出现次数、平均耗时、最大耗时 */
+    public List<Map<String, Object>> aggregatedByFingerprint(String projectCode, int limit) {
+        try {
+            StringBuilder sql = new StringBuilder(
+                "SELECT fingerprint, MIN(sql_text) as sample_sql, COUNT(*) as cnt, " +
+                "ROUND(AVG(query_time_sec),2) as avg_time, ROUND(MAX(query_time_sec),2) as max_time, " +
+                "MAX(severity) as top_severity, MAX(diagnosis_report) as has_report, " +
+                "MAX(instance_id) as instance_id, MAX(project_code) as project_code " +
+                "FROM captured_sql WHERE 1=1");
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            if (projectCode != null && !projectCode.isEmpty()) {
+                sql.append(" AND project_code = ?"); params.add(projectCode);
+            }
+            sql.append(" GROUP BY fingerprint ORDER BY cnt DESC, avg_time DESC LIMIT ?");
+            params.add(limit);
+            return jdbc.queryForList(sql.toString(), params.toArray());
+        } catch (Exception e) { return List.of(); }
+    }
+
+    public int countP0(String projectCode) {
+        try {
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql WHERE severity = 'P0'", Integer.class);
+            return jdbc.queryForObject("SELECT COUNT(*) FROM captured_sql WHERE project_code = ? AND severity = 'P0'", Integer.class, projectCode);
+        } catch (Exception e) { return 0; }
+    }
+
+    public List<Map<String, Object>> dailyTrend(String projectCode, int days) {
+        try {
+            String sql = "SELECT DATE(captured_at) as day, COUNT(*) as cnt FROM captured_sql WHERE captured_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)";
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            params.add(days);
+            if (projectCode != null && !projectCode.isEmpty()) {
+                sql += " AND project_code = ?";
+                params.add(projectCode);
+            }
+            sql += " GROUP BY DATE(captured_at) ORDER BY day";
+            return jdbc.queryForList(sql, params.toArray());
+        } catch (Exception e) { return List.of(); }
+    }
+
+    public List<CapturedSql> findByFilters(String projectCode, String instanceId, String severity,
+                                            String startTime, String endTime, int limit) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM captured_sql WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
             if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
             if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
+            if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
+            if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }
             sql.append(" ORDER BY captured_at DESC LIMIT ?");
             params.add(limit);
             return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());

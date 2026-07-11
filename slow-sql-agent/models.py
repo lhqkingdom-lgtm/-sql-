@@ -22,6 +22,10 @@ class DiagnosisResult(BaseModel):
     error: str = ""
     duration_ms: int = 0
     tool_call_count: int = 0
+    fingerprint: str = ""
+    instance_id: str = Field(default="", alias="instanceId")
+    project_code: str = Field(default="", alias="projectCode")
+    source: str = ""
 
     model_config = {"populate_by_name": True}
 

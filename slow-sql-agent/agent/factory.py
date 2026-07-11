@@ -6,11 +6,11 @@ from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain_openai import ChatOpenAI
 
 from config import Settings
-from agent.callbacks import TokenBudgetHandler, MetricsHandler, RepeatGuardHandler
+from agent.callbacks import TokenBudgetHandler, MetricsHandler, RepeatGuardHandler, ProgressCallback
 
 
-def create_agent_with_memory(settings: Settings):
-    """返回 make_agent(tools) → (runner, metrics)"""
+def create_agent_with_memory(settings: Settings, redis_url: str = None):
+    """返回 make_agent(tools, task_id) → (runner, metrics, progress_cb)"""
 
     llm = ChatOpenAI(
         api_key=settings.deepseek_api_key,
@@ -36,26 +36,30 @@ def create_agent_with_memory(settings: Settings):
             ttl=3600,
         )
 
-    def make_agent(tools):
+    def make_agent(tools, task_id=None):
         token_handler = TokenBudgetHandler(settings.agent_token_budget)
         metrics = MetricsHandler()
         repeat = RepeatGuardHandler()
+        progress = ProgressCallback(redis_url, task_id) if redis_url and task_id else None
+
+        callbacks = [token_handler, metrics, repeat]
+        if progress: callbacks.append(progress)
 
         llm_with_tools = llm.bind_tools(tools)
         agent = create_openai_tools_agent(llm_with_tools, tools, prompt)
         executor = AgentExecutor(
             agent=agent, tools=tools,
+            return_intermediate_steps=True,
             max_iterations=settings.agent_max_iterations,
             early_stopping_method="generate",
             handle_parsing_errors=True,
-            callbacks=[token_handler, metrics, repeat],
-            return_intermediate_steps=False,
+            callbacks=callbacks,
             verbose=False,
         )
         runner = RunnableWithMessageHistory(
             executor, _get_session_history,
             input_messages_key="input", history_messages_key="chat_history",
         )
-        return runner, metrics
+        return runner, metrics, progress
 
     return make_agent

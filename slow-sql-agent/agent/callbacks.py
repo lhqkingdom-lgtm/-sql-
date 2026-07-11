@@ -67,3 +67,68 @@ class RepeatGuardHandler(BaseCallbackHandler):
 class RepeatGuardTripped(Exception):
     """死循环检测触发"""
     pass
+
+
+class ProgressCallback(BaseCallbackHandler):
+    """诊断进度回调——每步写 Redis（同步客户端），前端轮询展示过程"""
+
+    def __init__(self, redis_url: str, task_id: str, ttl: int = 1800):
+        self.task_id = task_id
+        self.ttl = ttl
+        self.steps: list[dict] = []
+        self._step_idx = 0
+        import redis as sync_redis
+        import urllib.parse
+        try:
+            u = urllib.parse.urlparse(redis_url)
+            self.redis = sync_redis.Redis(
+                host=u.hostname or 'localhost',
+                port=u.port or 6379,
+                password=u.password,
+                db=int(u.path.lstrip('/')) if u.path and u.path.lstrip('/') else 0,
+                decode_responses=True,
+                protocol=2
+            )
+            self.redis.ping()
+            import logging
+            logging.getLogger(__name__).info(f"ProgressCallback initialized for {task_id}")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"ProgressCallback init failed: {e}")
+            self.redis = None
+
+    def _write(self):
+        if not self.redis: return
+        try:
+            import json
+            key = f"diagnosis:progress:{self.task_id}"
+            self.redis.setex(key, self.ttl,
+                json.dumps({"status": "running", "steps": self.steps}, ensure_ascii=False))
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"ProgressCallback write failed: {e}")
+
+    def _add_step(self, name: str, status: str, detail: str = ""):
+        import time, logging
+        self._step_idx += 1
+        self.steps.append({
+            "step": self._step_idx, "tool": name, "status": status,
+            "detail": detail, "timestamp": int(time.time() * 1000)
+        })
+        self._write()
+
+    def on_llm_start(self, *args, **kwargs):
+        self._add_step("llm", "start", "AI 分析中...")
+
+    def on_tool_start(self, serialized, input_str: str, **kwargs):
+        name = serialized.get("name", "unknown")
+        self._add_step(name, "start", input_str[:200])
+
+    def on_tool_end(self, output: str, **kwargs):
+        self._add_step("tool_done", "done", output[:200])
+
+    def on_llm_end(self, *args, **kwargs):
+        self._add_step("llm", "done", "分析完成")
+
+    def on_tool_error(self, error, **kwargs):
+        self._add_step("tool_error", "error", str(error)[:200])

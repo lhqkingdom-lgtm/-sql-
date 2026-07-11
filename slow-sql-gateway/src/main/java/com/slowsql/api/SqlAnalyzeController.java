@@ -228,6 +228,50 @@ public class SqlAnalyzeController {
         return ResponseEntity.ok(m);
     }
 
+    /** 重新诊断——从历史记录取出原始SQL重新提交到RMQ */
+    @PostMapping("/retry/{taskId}")
+    public ResponseEntity<?> retry(@PathVariable String taskId) {
+        com.slowsql.persistence.DiagnosisRecord r = recordRepository.findByTaskId(taskId);
+        if (r == null) return ResponseEntity.notFound().build();
+        String newTaskId = UUID.randomUUID().toString();
+        Map<String, Object> msg = new LinkedHashMap<>();
+        msg.put("taskId", newTaskId);
+        msg.put("sessionId", r.getSessionId());
+        msg.put("instanceId", r.getInstanceId());
+        msg.put("projectCode", r.getProjectCode());
+        msg.put("enrichedPrompt", "【重试诊断】\n【原始SQL】\n" + r.getOriginalSql());
+        msg.put("fingerprint", r.getFingerprint());
+        msg.put("source", r.getSource() != null ? r.getSource() : "retry");
+        msg.put("timestamp", LocalDateTime.now().toString());
+        taskProducer.sendHigh(msg);
+        return ResponseEntity.accepted().body(Map.of("taskId", newTaskId, "status", "pending"));
+    }
+
+    /** 诊断进度——前端轮询展示工具调用步骤 */
+    @GetMapping("/progress/{taskId}")
+    public ResponseEntity<?> progress(@PathVariable String taskId) {
+        try {
+            String json = redis.opsForValue().get("diagnosis:progress:" + taskId);
+            if (json != null) return ResponseEntity.ok(json);
+            // fallback: check task status hash
+            Map<Object, Object> status = redis.opsForHash().entries("diagnosis:task:" + taskId);
+            return ResponseEntity.ok(Map.of("status", status.getOrDefault("status", "not_found")));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("status", "error", "error", e.getMessage()));
+        }
+    }
+
+    /** 降级队列状态 */
+    @GetMapping("/fallback")
+    public ResponseEntity<?> fallbackStatus() {
+        try {
+            Long size = redis.opsForList().size("diagnosis:fallback:queue");
+            return ResponseEntity.ok(Map.of("queueSize", size != null ? size : 0));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("queueSize", -1, "error", "Redis不可达"));
+        }
+    }
+
     private ResponseEntity<?> badRequest(String msg, String code) {
         return ResponseEntity.badRequest().body(
                 new SqlAnalyzeResponse(null, null, null, msg, code));

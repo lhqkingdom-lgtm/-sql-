@@ -27,6 +27,8 @@ class SlowSqlCaptureSchedulerTest {
     private DiagnosisTaskProducer taskProducer;
     private ImNotificationService notifier;
     private EventNormalizer normalizer;
+    private HttpCaptureController httpCapture;
+    private CaptureStatusController captureStatus;
 
     @BeforeEach
     void setUp() {
@@ -37,10 +39,12 @@ class SlowSqlCaptureSchedulerTest {
         taskProducer = mock(DiagnosisTaskProducer.class);
         notifier = mock(ImNotificationService.class);
         normalizer = new EventNormalizer();
+        httpCapture = mock(HttpCaptureController.class);
+        captureStatus = mock(CaptureStatusController.class);
 
         scheduler = new SlowSqlCaptureScheduler(
                 dataSourceManager, properties, dedupService, repository,
-                taskProducer, notifier, normalizer);
+                taskProducer, notifier, normalizer, httpCapture, captureStatus);
     }
 
     // ===== 采集开关关闭 =====

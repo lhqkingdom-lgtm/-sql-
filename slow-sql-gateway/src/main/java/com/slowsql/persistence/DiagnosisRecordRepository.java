@@ -168,6 +168,15 @@ public class DiagnosisRecordRepository {
         } catch (Exception e) { return 0; }
     }
 
+    /** 待诊断/诊断中计数 */
+    public int countPending(String projectCode) {
+        try {
+            if (projectCode == null || projectCode.isEmpty())
+                return jdbc.queryForObject("SELECT COUNT(*) FROM diagnosis_record WHERE status IN ('PENDING','RUNNING')", Integer.class);
+            return jdbc.queryForObject("SELECT COUNT(*) FROM diagnosis_record WHERE project_code = ? AND status IN ('PENDING','RUNNING')", Integer.class, projectCode);
+        } catch (Exception e) { return 0; }
+    }
+
     /** P0 严重度计数 */
     public int countP0(String projectCode) {
         try {

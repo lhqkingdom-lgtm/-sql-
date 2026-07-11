@@ -1,5 +1,4 @@
-"""Pydantic Settings — 全部从环境变量读取，无 YAML 依赖。"""
-import os
+"""Pydantic Settings — config defaults, overridable via env vars."""
 from pydantic_settings import BaseSettings
 
 
@@ -28,10 +27,8 @@ class Settings(BaseSettings):
     # RabbitMQ
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
 
-    model_config = {"env_prefix": "", "case_sensitive": False}
+    model_config = {"env_prefix": "", "case_sensitive": False, "env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 def load_settings() -> Settings:
-    return Settings(
-        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", ""),
-    )
+    return Settings()

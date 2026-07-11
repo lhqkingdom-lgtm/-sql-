@@ -1,6 +1,7 @@
 package com.slowsql.gateway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.slowsql.capture.CapturedSqlRepository;
 import com.slowsql.config.RabbitMqConfig;
 import com.slowsql.persistence.DiagnosisRecord;
 import com.slowsql.persistence.DiagnosisRecordRepository;
@@ -29,6 +30,7 @@ class DiagnosisGatewayTest {
     private StringRedisTemplate redis;
     private ObjectMapper objectMapper;
     private DiagnosisRecordRepository recordRepository;
+    private CapturedSqlRepository capturedRepo;
     private DiagnosisTaskProducer producer;
     private DiagnosisResultConsumer consumer;
 
@@ -39,6 +41,7 @@ class DiagnosisGatewayTest {
         redis = mock(StringRedisTemplate.class);
         objectMapper = new ObjectMapper();
         recordRepository = mock(DiagnosisRecordRepository.class);
+        capturedRepo = mock(CapturedSqlRepository.class);
 
         ListOperations<String, String> listOps = mock(ListOperations.class);
         ValueOperations<String, String> valueOps = mock(ValueOperations.class);
@@ -50,7 +53,7 @@ class DiagnosisGatewayTest {
         when(listOps.size(anyString())).thenReturn(0L);
 
         producer = new DiagnosisTaskProducer(rabbitTemplate, redis, objectMapper);
-        consumer = new DiagnosisResultConsumer(redis, recordRepository, objectMapper);
+        consumer = new DiagnosisResultConsumer(redis, recordRepository, capturedRepo, objectMapper);
     }
 
     // ===== 1. 正常投递 =====

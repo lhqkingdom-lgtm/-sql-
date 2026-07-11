@@ -21,7 +21,7 @@ class ResultPublisher:
     async def publish_result(self, result: DiagnosisResult):
         if not self._channel:
             return
-        body = json.dumps(result.model_dump()).encode()
+        body = json.dumps(result.model_dump(by_alias=True)).encode()
         exchange = await self._channel.declare_exchange(
             "diagnosis.exchange", aio_pika.ExchangeType.TOPIC, durable=True)
         await exchange.publish(
@@ -33,7 +33,7 @@ class ResultPublisher:
         """降级队列恢复——重新投递任务"""
         if not self._channel:
             return
-        body = json.dumps(task.model_dump()).encode()
+        body = json.dumps(task.model_dump(by_alias=True)).encode()
         exchange = await self._channel.declare_exchange(
             "diagnosis.exchange", aio_pika.ExchangeType.TOPIC, durable=True)
         await exchange.publish(

@@ -23,6 +23,18 @@ public class CapturedSql {
     private String severity;          // P0 / P1 / P2
     private LocalDateTime capturedAt;
 
+    /** 从 SQL 文本计算指纹（与 SlowSqlEvent.normalizeSql 保持一致） */
+    public static String fingerprint(String sql) {
+        String normalized = SlowSqlEvent.normalizeSql(sql);
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(normalized.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) { return String.valueOf(normalized.hashCode()); }
+    }
+
     /** 从统一事件构建采集记录 */
     public static CapturedSql fromEvent(SlowSqlEvent event) {
         CapturedSql c = new CapturedSql();
@@ -88,4 +100,18 @@ public class CapturedSql {
 
     public LocalDateTime getCapturedAt() { return capturedAt; }
     public void setCapturedAt(LocalDateTime capturedAt) { this.capturedAt = capturedAt; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof CapturedSql that)) return false;
+        if (fingerprint != null) return fingerprint.equals(that.fingerprint);
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        if (fingerprint != null) return fingerprint.hashCode();
+        return id != null ? id.hashCode() : super.hashCode();
+    }
 }

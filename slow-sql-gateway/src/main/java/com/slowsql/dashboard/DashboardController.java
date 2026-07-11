@@ -28,12 +28,25 @@ public class DashboardController {
         data.put("sourceDistribution", capturedRepo.countBySource(projectCode));
         data.put("topFrequent", capturedRepo.findTopFrequent(projectCode, 5));
         data.put("diagnosisCount", diagnosisRepo.countByProject(projectCode));
+        data.put("pendingCount", diagnosisRepo.countPending(projectCode));
+        data.put("p0Count", capturedRepo.countP0(projectCode));
         return ResponseEntity.ok(data);
     }
 
     @GetMapping("/recent")
     public ResponseEntity<?> recent(@RequestParam(required = false) String projectCode,
                                      @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(capturedRepo.findByProjectCode(projectCode != null ? projectCode : "", limit));
+        List<com.slowsql.capture.CapturedSql> recent;
+        if (projectCode != null && !projectCode.isEmpty())
+            recent = capturedRepo.findByProjectCode(projectCode, limit);
+        else
+            recent = capturedRepo.findAll(limit);
+        return ResponseEntity.ok(recent);
+    }
+
+    @GetMapping("/trend")
+    public ResponseEntity<?> trend(@RequestParam(required = false) String projectCode,
+                                    @RequestParam(defaultValue = "7") int days) {
+        return ResponseEntity.ok(capturedRepo.dailyTrend(projectCode, days));
     }
 }

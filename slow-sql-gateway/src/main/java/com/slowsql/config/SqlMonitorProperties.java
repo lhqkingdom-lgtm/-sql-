@@ -71,6 +71,7 @@ public class SqlMonitorProperties {
             private long minRowsExamined;
             private int lookbackSeconds = 600;
             private String path;
+            private String instanceId;
 
             public String getType() { return type; }
             public void setType(String type) { this.type = type; }
@@ -84,6 +85,8 @@ public class SqlMonitorProperties {
             public void setLookbackSeconds(int lookbackSeconds) { this.lookbackSeconds = lookbackSeconds; }
             public String getPath() { return path; }
             public void setPath(String path) { this.path = path; }
+            public String getInstanceId() { return instanceId; }
+            public void setInstanceId(String instanceId) { this.instanceId = instanceId; }
         }
     }
 

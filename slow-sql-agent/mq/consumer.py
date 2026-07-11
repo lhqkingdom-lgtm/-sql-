@@ -78,18 +78,46 @@ async def _process(message, agent_factory, redis, publisher):
     })
 
     _instance_id_ctx.set(task.instance_id)
-    agent, metrics = agent_factory(ALL_TOOLS)
+    agent, metrics, progress = agent_factory(ALL_TOOLS, task.task_id)
+
+    # Write initial progress
+    if progress:
+        progress._add_step("agent", "start", "Agent 启动，连接 DeepSeek...")
 
     try:
         result = await agent.ainvoke(
             {"input": task.enriched_prompt, "system_prompt": SYSTEM_PROMPT},
             config={"configurable": {"session_id": task.session_id or task.task_id}}
         )
+        # Extract intermediate steps from agent output
+        TOOL_CN = {
+            'get_table_ddl':'获取表结构','get_execution_plan':'执行计划分析',
+            'get_table_statistics':'表统计信息','check_active_locks':'锁检查',
+            'get_innodb_status':'InnoDB状态','get_global_variable':'全局变量',
+            'check_redundant_indexes':'冗余索引','compare_execution_plan':'计划对比',
+            'get_slow_log_stats':'慢日志统计','check_missing_indexes':'缺失索引',
+            'check_type_mismatch':'类型转换','get_buffer_pool_hit_rate':'缓存命中率',
+            'get_process_list':'连接列表','check_actual_row_count':'实际行数',
+        }
+        if progress and "intermediate_steps" in result:
+            for action, observation in result["intermediate_steps"]:
+                tool_name = action.tool if hasattr(action, 'tool') else str(action)
+                cn_name = TOOL_CN.get(tool_name, tool_name)
+                obs_str = str(observation)[:200] if observation else ""
+                progress._add_step(cn_name, "done", obs_str)
+
+        if progress:
+            progress._add_step("AI引擎", "done", f"诊断完成，{metrics.tool_calls}次工具调用，{metrics.elapsed_ms}ms")
+
         diag = DiagnosisResult(
             task_id=task.task_id, status="completed",
             report=result["output"] or "",
             duration_ms=metrics.elapsed_ms,
             tool_call_count=metrics.tool_calls,
+            fingerprint=task.fingerprint,
+            instance_id=task.instance_id,
+            project_code=task.project_code,
+            source=task.source,
         )
     except TokenBudgetExceeded:
         diag = DiagnosisResult(task_id=task.task_id, status="failed",

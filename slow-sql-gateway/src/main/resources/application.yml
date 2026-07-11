@@ -68,6 +68,11 @@ sql-monitor:
         min-query-time-sec: 0.5
         lookback-seconds: 600
       - type: http_endpoint
+      - type: slow_log_file
+        path: D:/slow-sql-analyzer-v5/slow-sql-gateway/test-slow.log
+        instanceId: tc-dev-mysql
+        min-query-time-sec: 0.5
+        min-rows-examined: 0
 
   # API限流
   rate-limit:
@@ -79,12 +84,10 @@ sql-monitor:
       name: 同城俱乐部系统
       instanceIds:
         - tc-dev-mysql
-        - tc-prod-mysql
 
     - code: payment-sys
       name: 支付系统
-      instanceIds:
-        - pay-dev-mysql
+      instanceIds: []
 
   # ========== MySQL实例（按host:port去重） ==========
   instances:
@@ -94,20 +97,6 @@ sql-monitor:
       username: root
       password: ${INSTANCE_PASSWORD:123456}
       defaultDatabase: test_sql
-
-    - id: tc-prod-mysql
-      host: 10.0.2.1
-      port: 3306
-      username: root
-      password: ${INSTANCE_PASSWORD:123456}
-      defaultDatabase: test_sql
-
-    - id: pay-dev-mysql
-      host: 10.0.3.1
-      port: 3306
-      username: root
-      password: ${INSTANCE_PASSWORD:123456}
-      defaultDatabase: payment
 
 # ========== 日志 ==========
 logging:

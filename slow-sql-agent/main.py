@@ -39,8 +39,8 @@ async def lifespan(app: FastAPI):
     data_client = DataClient(settings)
     set_data_client(data_client)
 
-    # Agent
-    agent_factory = create_agent_with_memory(settings)
+    # Agent (pass redis_url for progress tracking)
+    agent_factory = create_agent_with_memory(settings, settings.redis_url)
 
     # System Prompt
     with open("prompts/diagnosis.yaml", encoding="utf-8") as f:

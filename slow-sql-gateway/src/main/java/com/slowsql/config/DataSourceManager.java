@@ -130,7 +130,9 @@ public class DataSourceManager {
         JdbcTemplate jt = getTemplate(instanceId);
         if (jt == null) return false;
         try {
+            jt.setQueryTimeout(3);
             jt.queryForObject("SELECT 1", Integer.class);
+            jt.setQueryTimeout(0);
             return true;
         } catch (Exception e) {
             log.warn("连接预检失败 [{}]: {}", instanceId, e.getMessage());
