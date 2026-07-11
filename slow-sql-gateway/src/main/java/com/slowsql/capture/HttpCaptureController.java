@@ -1,6 +1,7 @@
 package com.slowsql.capture;
 
 import com.slowsql.config.DataSourceManager;
+import com.slowsql.gateway.DiagnosisTaskProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -8,9 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -28,9 +27,18 @@ public class HttpCaptureController implements CaptureSource {
     private final ConcurrentLinkedQueue<CapturedSql> pending = new ConcurrentLinkedQueue<>();
     private volatile boolean configured = false;
     private final DataSourceManager dataSourceManager;
+    private final CapturedSqlRepository repository;
+    private final DiagnosisTaskProducer taskProducer;
+    private final FingerprintDedupService dedupService;
 
-    public HttpCaptureController(DataSourceManager dataSourceManager) {
+    public HttpCaptureController(DataSourceManager dataSourceManager,
+                                  CapturedSqlRepository repository,
+                                  DiagnosisTaskProducer taskProducer,
+                                  FingerprintDedupService dedupService) {
         this.dataSourceManager = dataSourceManager;
+        this.repository = repository;
+        this.taskProducer = taskProducer;
+        this.dedupService = dedupService;
     }
 
     @Override public String name() { return "http_endpoint"; }
@@ -99,7 +107,31 @@ public class HttpCaptureController implements CaptureSource {
         captured.setFingerprint(CapturedSql.fingerprint(sql));
         captured.setCapturedAt(LocalDateTime.now());
 
-        pending.offer(captured);
+        // 秒级入库 + 发 RMQ，不等 Scheduler
+        try {
+            SlowSqlEvent event = toEvent(captured);
+            captured.setSeverity(SlowSqlSeverity.from(event).name());
+
+            // 去重：已注册过的指纹只 upsert，不重复投递诊断
+            boolean isNew = dedupService.tryRegister(captured.getFingerprint());
+            repository.upsert(captured);
+
+            if (isNew) {
+                Map<String, Object> msg = new LinkedHashMap<>();
+                msg.put("taskId", UUID.randomUUID().toString());
+                msg.put("instanceId", captured.getInstanceId());
+                msg.put("projectCode", captured.getProjectCode());
+                msg.put("enrichedPrompt", SlowSqlCaptureRouter.buildDiagnosisContext(event));
+                msg.put("fingerprint", captured.getFingerprint());
+                msg.put("source", captured.getSource());
+                msg.put("timestamp", LocalDateTime.now().toString());
+                taskProducer.sendNormal(msg);
+            }
+        } catch (Exception e) {
+            log.warn("HTTP采集即时处理失败，降级到内存队列: {}", e.getMessage());
+            pending.offer(captured);
+        }
+
         return ResponseEntity.ok(Map.of("received", true));
     }
 }
