@@ -6,15 +6,17 @@
     </div>
 
     <el-table :data="records" stripe v-loading="loading" empty-text="暂无诊断记录" style="width:100%">
-      <el-table-column label="状态" width="90">
+      <el-table-column label="状态" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.status==='completed'?'success':'danger'" size="small">
-            {{ row.status === 'completed' ? '已完成' : row.status }}
-          </el-tag>
+          <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="SQL" min-width="240" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.originalSql || row.sqlPreview || '—' }}</template>
+      <el-table-column label="SQL" min-width="260">
+        <template #default="{ row }">
+          <el-tooltip :content="row.cleanSql || row.originalSql || row.sqlPreview || ''" placement="top" :show-after="400">
+            <span class="sql-cell">{{ sqlPreview(row) }}</span>
+          </el-tooltip>
+        </template>
       </el-table-column>
       <el-table-column label="来源" width="90">
         <template #default="{ row }">{{ sourceLabel(row.source) }}</template>
@@ -55,6 +57,28 @@ const reportHtml = ref('')
 function sourceLabel(s) {
   const m = { manual:'手动', slow_log_table:'慢表', slow_log_file:'文件', http_endpoint:'HTTP' }
   return m[s] || s || '—'
+}
+
+function statusLabel(s) {
+  const v = (s || '').toLowerCase()
+  if (v === 'completed') return '已完成'
+  if (v === 'failed') return '失败'
+  if (v === 'running') return '诊断中'
+  if (v === 'pending') return '等待中'
+  return s || '—'
+}
+
+function statusType(s) {
+  const v = (s || '').toLowerCase()
+  if (v === 'completed') return 'success'
+  if (v === 'failed') return 'danger'
+  if (v === 'running') return 'warning'
+  return 'info'
+}
+
+function sqlPreview(row) {
+  const sql = row.cleanSql || row.originalSql || row.sqlPreview || ''
+  return sql.length > 80 ? sql.substring(0, 80) + '...' : sql
 }
 
 async function load() {

@@ -33,12 +33,14 @@ public class DiagnosisHistoryController {
     }
 
     private Map<String, Object> toSummary(DiagnosisRecord r) {
+        String displaySql = r.getCleanSql() != null ? r.getCleanSql() : r.getOriginalSql();
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("taskId", r.getTaskId());
         m.put("projectCode", r.getProjectCode());
         m.put("instanceId", r.getInstanceId());
-        m.put("sqlPreview", r.getOriginalSql() != null && r.getOriginalSql().length() > 100
-                ? r.getOriginalSql().substring(0, 100) + "..." : r.getOriginalSql());
+        m.put("sqlPreview", displaySql != null && displaySql.length() > 100
+                ? displaySql.substring(0, 100) + "..." : displaySql);
+        m.put("cleanSql", r.getCleanSql());
         m.put("status", r.getStatus());
         m.put("source", r.getSource());
         m.put("durationMs", r.getDurationMs());
