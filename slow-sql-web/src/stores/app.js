@@ -19,6 +19,7 @@ export const useAppStore = defineStore('app', () => {
       if (!currentProject.value && projects.value.length > 0) {
         currentProject.value = projects.value[0].code
       }
+      await fetchInstanceHealth()
     } catch (e) {
       console.warn('加载项目列表失败:', e.message)
     }
