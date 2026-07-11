@@ -51,6 +51,13 @@ public class DiagnosisHistoryController {
         return ResponseEntity.ok(Map.of("ok", deleted > 0));
     }
 
+    @PostMapping("/history/clear")
+    public ResponseEntity<?> clear(@RequestBody(required = false) Map<String, String> body) {
+        String projectCode = body != null ? body.get("projectCode") : null;
+        int deleted = repository.deleteAll(projectCode);
+        return ResponseEntity.ok(Map.of("ok", true, "deleted", deleted));
+    }
+
     private Map<String, Object> toSummary(DiagnosisRecord r) {
         String displaySql = r.getCleanSql() != null ? r.getCleanSql() : r.getOriginalSql();
         Map<String, Object> m = new LinkedHashMap<>();

@@ -99,6 +99,17 @@ public class DiagnosisRecordRepository {
         }
     }
 
+    public int deleteAll(String projectCode) {
+        try {
+            if (projectCode != null && !projectCode.isEmpty())
+                return jdbc.update("DELETE FROM diagnosis_record WHERE project_code = ?", projectCode);
+            return jdbc.update("DELETE FROM diagnosis_record");
+        } catch (Exception e) {
+            log.warn("清空诊断记录失败: {}", e.getMessage());
+            return 0;
+        }
+    }
+
     public List<DiagnosisRecord> findBySessionId(String sessionId, int limit) {
         try {
             return jdbc.query(
