@@ -24,7 +24,7 @@
       </el-table-column>
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.status==='completed'" size="small" text type="primary" @click="viewReport(row)">
+          <el-button v-if="(row.status||'').toLowerCase()==='completed'" size="small" text type="primary" @click="viewReport(row)">
             查看报告
           </el-button>
           <el-button size="small" text type="primary" :loading="row._retrying" @click="retry(row)">
