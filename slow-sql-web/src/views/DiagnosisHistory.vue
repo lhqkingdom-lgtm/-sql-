@@ -44,6 +44,9 @@
         <template #default="{ row }">
           <el-button v-if="(row.status||'').toLowerCase()==='completed'" size="small" text type="primary" @click="viewReport(row)">查看报告</el-button>
           <el-button size="small" text type="primary" :loading="row._retrying" @click="retry(row)">重试</el-button>
+          <el-popconfirm title="删除？" @confirm="del(row.taskId)">
+            <template #reference><el-button size="small" text type="danger">删</el-button></template>
+          </el-popconfirm>
         </template>
       </el-table-column>
     </el-table>
@@ -109,6 +112,13 @@ async function viewReport(row) {
     reportHtml.value = renderMarkdown(detail.report || '无报告内容')
   } catch (e) { reportHtml.value = renderMarkdown(row.report || '加载失败') }
   reportVisible.value = true
+}
+
+async function del(taskId) {
+  try {
+    await http.delete(`/diagnosis/history/${taskId}`)
+    records.value = records.value.filter(r => r.taskId !== taskId)
+  } catch (e) { alert('删除失败: ' + e.message) }
 }
 
 async function retry(row) {

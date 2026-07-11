@@ -45,6 +45,12 @@ public class DiagnosisHistoryController {
         return ResponseEntity.ok(toDetail(r));
     }
 
+    @DeleteMapping("/history/{taskId}")
+    public ResponseEntity<?> delete(@PathVariable String taskId) {
+        int deleted = repository.deleteByTaskId(taskId);
+        return ResponseEntity.ok(Map.of("ok", deleted > 0));
+    }
+
     private Map<String, Object> toSummary(DiagnosisRecord r) {
         String displaySql = r.getCleanSql() != null ? r.getCleanSql() : r.getOriginalSql();
         Map<String, Object> m = new LinkedHashMap<>();

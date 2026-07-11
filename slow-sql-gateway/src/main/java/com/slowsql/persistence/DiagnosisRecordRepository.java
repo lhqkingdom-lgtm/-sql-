@@ -90,6 +90,15 @@ public class DiagnosisRecordRepository {
         }
     }
 
+    public int deleteByTaskId(String taskId) {
+        try {
+            return jdbc.update("DELETE FROM diagnosis_record WHERE task_id = ?", taskId);
+        } catch (Exception e) {
+            log.warn("删除诊断记录失败: {}", e.getMessage());
+            return 0;
+        }
+    }
+
     public List<DiagnosisRecord> findBySessionId(String sessionId, int limit) {
         try {
             return jdbc.query(
