@@ -204,7 +204,7 @@ public class SqlAnalyzeController {
     public ResponseEntity<?> history(@RequestParam(required = false) String projectCode,
                                       @RequestParam(required = false) String instanceId,
                                       @RequestParam(defaultValue = "20") int limit) {
-        List<com.slowsql.persistence.DiagnosisRecord> records = recordRepository.findHistory(projectCode, instanceId, 0, limit);
+        List<com.slowsql.persistence.DiagnosisRecord> records = recordRepository.findHistory(projectCode, instanceId, null, null, 0, limit);
         return ResponseEntity.ok(records.stream().map(r -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("taskId", r.getTaskId()); m.put("projectCode", r.getProjectCode());

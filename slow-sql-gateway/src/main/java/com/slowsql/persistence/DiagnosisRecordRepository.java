@@ -146,25 +146,30 @@ public class DiagnosisRecordRepository {
         }
     }
 
-    /** 查询诊断历史（可筛选项目/实例，分页） */
-    public List<DiagnosisRecord> findHistory(String projectCode, String instanceId, int offset, int size) {
+    /** 查询诊断历史（可筛选项目/实例/时间，分页） */
+    public List<DiagnosisRecord> findHistory(String projectCode, String instanceId,
+                                              String startTime, String endTime, int offset, int size) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM diagnosis_record WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
             if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            if (startTime != null && !startTime.isEmpty()) { sql.append(" AND created_at >= ?"); params.add(startTime); }
+            if (endTime != null && !endTime.isEmpty()) { sql.append(" AND created_at <= ?"); params.add(endTime); }
             sql.append(" ORDER BY created_at DESC LIMIT ?, ?");
             params.add(offset); params.add(size);
             return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());
         } catch (Exception e) { return List.of(); }
     }
 
-    public int countHistory(String projectCode, String instanceId) {
+    public int countHistory(String projectCode, String instanceId, String startTime, String endTime) {
         try {
             StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM diagnosis_record WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
             if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            if (startTime != null && !startTime.isEmpty()) { sql.append(" AND created_at >= ?"); params.add(startTime); }
+            if (endTime != null && !endTime.isEmpty()) { sql.append(" AND created_at <= ?"); params.add(endTime); }
             Integer cnt = jdbc.queryForObject(sql.toString(), Integer.class, params.toArray());
             return cnt != null ? cnt : 0;
         } catch (Exception e) { return 0; }

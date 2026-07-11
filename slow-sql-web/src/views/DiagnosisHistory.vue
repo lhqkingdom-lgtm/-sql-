@@ -3,6 +3,9 @@
     <div class="page-header">
       <h3>诊断历史</h3>
       <div class="filters">
+        <el-date-picker v-model="timeRange" type="daterange" range-separator="至"
+          start-placeholder="开始" end-placeholder="结束" size="small" style="width:240px"
+          value-format="YYYY-MM-DD HH:mm:ss" @change="load" />
         <el-button size="small" @click="load" :icon="Refresh">刷新</el-button>
       </div>
     </div>
@@ -57,7 +60,7 @@ import http from '@/api/request'
 const app = useAppStore()
 const records = ref([])
 const loading = ref(false)
-const page = ref(1); const size = ref(20); const total = ref(0)
+const page = ref(1); const size = ref(20); const total = ref(0); const timeRange = ref(null)
 const reportVisible = ref(false); const reportHtml = ref('')
 
 function sourceLabel(s) { const m = { manual:'手动', slow_log_table:'慢表', slow_log_file:'文件', http_endpoint:'HTTP' }; return m[s] || s || '—' }
@@ -75,7 +78,9 @@ function renderMarkdown(md) {
 async function load() {
   loading.value = true
   try {
-    const resp = await http.get('/diagnosis/history', { params: { page: page.value, size: size.value, projectCode: app.currentProject } })
+    const params = { page: page.value, size: size.value, projectCode: app.currentProject }
+    if (timeRange.value) { params.startTime = timeRange.value[0]; params.endTime = timeRange.value[1] }
+    const resp = await http.get('/diagnosis/history', { params })
     records.value = (resp.records || []).map(r => ({ ...r, _retrying: false }))
     total.value = resp.total || 0
   } catch (e) { console.error('加载历史失败:', e.message) }

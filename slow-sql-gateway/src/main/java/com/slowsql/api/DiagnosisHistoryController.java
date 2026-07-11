@@ -20,11 +20,13 @@ public class DiagnosisHistoryController {
     @GetMapping("/history")
     public ResponseEntity<?> history(@RequestParam(required = false) String projectCode,
                                       @RequestParam(required = false) String instanceId,
+                                      @RequestParam(required = false) String startTime,
+                                      @RequestParam(required = false) String endTime,
                                       @RequestParam(defaultValue = "1") int page,
                                       @RequestParam(defaultValue = "20") int size) {
         int offset = (page - 1) * size;
-        List<DiagnosisRecord> records = repository.findHistory(projectCode, instanceId, offset, size);
-        int total = repository.countHistory(projectCode, instanceId);
+        List<DiagnosisRecord> records = repository.findHistory(projectCode, instanceId, startTime, endTime, offset, size);
+        int total = repository.countHistory(projectCode, instanceId, startTime, endTime);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("records", records.stream().map(this::toSummary).toList());
         result.put("total", total);
