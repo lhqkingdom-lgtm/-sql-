@@ -138,7 +138,8 @@ public class MonitorController {
         m.put("projectCode", c.getProjectCode());
         m.put("occurrence", c.getOccurrenceCount());
         m.put("severity", c.getSeverity());
-        m.put("diagnosed", c.getDiagnosisReport() != null);
+        m.put("diagnosisReport", c.getDiagnosisReport());
+        m.put("diagnosed", c.getDiagnosisReport() != null && !c.getDiagnosisReport().equals("N/A"));
         m.put("capturedAt", c.getCapturedAt() != null ? c.getCapturedAt().toString() : null);
         return m;
     }
