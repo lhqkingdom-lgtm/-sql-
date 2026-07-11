@@ -109,6 +109,7 @@ function switchDb(db) {
 onMounted(() => {
   app.fetchProjects().then(() => {
     projectCode.value = app.currentProject
+    app.fetchDatabases()
   })
 })
 </script>

@@ -23,6 +23,7 @@ export const useAppStore = defineStore('app', () => {
         currentProject.value = projects.value[0].code
       }
       await fetchInstanceHealth()
+      await fetchDatabases()
     } catch (e) {
       console.warn('加载项目列表失败:', e.message)
     }
