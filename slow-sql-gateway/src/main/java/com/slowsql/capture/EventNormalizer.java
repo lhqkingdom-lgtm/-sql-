@@ -25,6 +25,7 @@ public class EventNormalizer {
         event.setInstanceId(instanceId);
         event.setProjectCode(projectCode);
         event.setSqlText(toString(row.get("sql_text")));
+        event.setDbName(toString(row.get("db")));
         event.setCapturedAt(toLocalDateTime(row.get("start_time")));
 
         SlowSqlEvent.EventMetrics m = new SlowSqlEvent.EventMetrics();

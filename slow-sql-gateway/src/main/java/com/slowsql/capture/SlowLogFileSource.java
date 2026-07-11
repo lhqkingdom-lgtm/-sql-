@@ -76,6 +76,7 @@ public class SlowLogFileSource implements CaptureSource {
                 StringBuilder block = new StringBuilder();
                 String line;
                 CapturedSql current = null;
+                String currentDb = null;
 
                 while ((line = raf.readLine()) != null) {
                     if (line.startsWith("# Time:")) {
@@ -87,6 +88,7 @@ public class SlowLogFileSource implements CaptureSource {
                         if (config.getInstanceId() != null && !config.getInstanceId().isBlank()) {
                             current.setInstanceId(config.getInstanceId());
                         }
+                        if (currentDb != null) current.setDatabaseName(currentDb);
                         Matcher tm = TIME_PATTERN.matcher(line);
                         if (tm.find()) {
                             current.setCapturedAt(LocalDateTime.parse(
@@ -97,7 +99,9 @@ public class SlowLogFileSource implements CaptureSource {
                         if (qm.find()) current.setQueryTimeSec(Double.parseDouble(qm.group(1)));
                         Matcher rm = ROWS_EXAMINED_PATTERN.matcher(line);
                         if (rm.find()) current.setRowsExamined(Long.parseLong(rm.group(1)));
-                    } else if (line.startsWith("use ") || line.startsWith("SET timestamp")) {
+                    } else if (line.startsWith("use ") || line.startsWith("USE ")) {
+                        currentDb = line.substring(4).trim().replace(";", "");
+                    } else if (line.startsWith("SET timestamp")) {
                         // skip
                     } else if (!line.startsWith("#") && current != null && current.getSqlText() == null) {
                         current.setSqlText(line.trim());

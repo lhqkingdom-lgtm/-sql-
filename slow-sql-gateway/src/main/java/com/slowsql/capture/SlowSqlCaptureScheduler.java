@@ -255,7 +255,7 @@ public class SlowSqlCaptureScheduler {
                 return List.of();
             }
             LocalDateTime last = lastCheckMap.get(instanceId);
-            String sql = "SELECT sql_text, query_time, lock_time, rows_examined, rows_sent, start_time " +
+            String sql = "SELECT sql_text, query_time, lock_time, rows_examined, rows_sent, start_time, db " +
                          "FROM mysql.slow_log WHERE start_time > ? ORDER BY start_time DESC LIMIT 200";
             var jt = dataSourceManager.getMonitoringTemplate(instanceId);
             List<Map<String, Object>> rows = jt.queryForList(sql,
