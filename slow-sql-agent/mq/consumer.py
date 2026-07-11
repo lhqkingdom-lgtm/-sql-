@@ -18,11 +18,6 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPT = ""
 
 # 与 Java RabbitMqConfig 保持一致
-QUEUE_ARGS = {
-    "x-message-ttl": 1800000,
-    "x-dead-letter-exchange": "diagnosis.dlx",
-    "x-dead-letter-routing-key": "dlq.task",
-}
 FALLBACK_KEY = "diagnosis:fallback:queue"
 
 
@@ -44,7 +39,7 @@ async def start_consumer(
     exchange = await channel.declare_exchange(
         "diagnosis.exchange", aio_pika.ExchangeType.TOPIC, durable=True)
     normal = await channel.declare_queue(
-        "diagnosis.task.normal", durable=True, arguments=QUEUE_ARGS)
+        "diagnosis.task.normal", durable=True)
     await normal.bind(exchange, routing_key="task.normal")
 
     async def handle(message: aio_pika.IncomingMessage):
