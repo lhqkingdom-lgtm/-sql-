@@ -106,7 +106,7 @@ async function retry(row) {
   finally { row._retrying = false }
 }
 
-watch(() => app.currentProject, () => { if (app.currentProject) { page.value = 1; load() } }, { immediate: true })
+watch([() => app.currentProject, () => app.currentDatabase], () => { if (app.currentProject) { page.value = 1; load() } }, { immediate: true })
 </script>
 
 <style scoped>
