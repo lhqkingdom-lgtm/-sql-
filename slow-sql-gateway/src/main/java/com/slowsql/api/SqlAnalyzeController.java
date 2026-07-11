@@ -5,6 +5,7 @@ import com.slowsql.capture.SlowSqlEvent;
 import com.slowsql.config.AuditLogger;
 import com.slowsql.config.DataSourceManager;
 import com.slowsql.config.SqlMonitorProperties;
+import com.slowsql.gateway.AgentClient;
 import com.slowsql.gateway.DiagnosisTaskProducer;
 import com.slowsql.persistence.DiagnosisRecord;
 import com.slowsql.persistence.DiagnosisRecordRepository;
@@ -36,6 +37,7 @@ public class SqlAnalyzeController {
     private static final String MYBATIS_LOG = "MYBATIS_LOG";
 
     private final DiagnosisTaskProducer taskProducer;
+    private final AgentClient agentClient;
     private final DataSourceManager dataSourceManager;
     private final DiagnosisRecordRepository recordRepository;
     private final RagRetriever ragRetriever;
@@ -45,6 +47,7 @@ public class SqlAnalyzeController {
     private final AuditLogger auditLogger;
 
     public SqlAnalyzeController(DiagnosisTaskProducer taskProducer,
+                                 AgentClient agentClient,
                                  DataSourceManager dataSourceManager,
                                  DiagnosisRecordRepository recordRepository,
                                  RagRetriever ragRetriever,
@@ -53,6 +56,7 @@ public class SqlAnalyzeController {
                                  SqlMonitorProperties properties,
                                  AuditLogger auditLogger) {
         this.taskProducer = taskProducer;
+        this.agentClient = agentClient;
         this.dataSourceManager = dataSourceManager;
         this.recordRepository = recordRepository;
         this.ragRetriever = ragRetriever;
@@ -109,35 +113,30 @@ public class SqlAnalyzeController {
         // 7. 构造 enrichedPrompt（不含 DDL/EXPLAIN）
         String enrichedPrompt = buildPrompt(ragContext, maskedSql);
 
-        // 8. 生成 taskId + 写任务元数据
-        String taskId = UUID.randomUUID().toString();
-        initTaskRedis(taskId, instanceId);
-
-        // 9. 统一事件格式
+        // 8. 统一事件格式
         SlowSqlEvent event = eventNormalizer.fromManual(cleanSql, instanceId, request.projectCode());
 
-        // 10. 投递 RabbitMQ
-        Map<String, Object> msg = new LinkedHashMap<>();
-        msg.put("taskId", taskId);
-        msg.put("sessionId", sessionId);
-        msg.put("instanceId", instanceId);
-        msg.put("projectCode", request.projectCode());
-        msg.put("enrichedPrompt", enrichedPrompt);
-        msg.put("fingerprint", event.getFingerprint());
-        msg.put("source", "manual");
-        msg.put("timestamp", LocalDateTime.now().toString());
-        taskProducer.sendHigh(msg);
+        // 9. 直发 Agent HTTP（不走 RMQ），同步等结果
+        AgentClient.DiagnoseResult result = agentClient.diagnose(
+                enrichedPrompt, instanceId, request.projectCode());
 
-        // 11. 异步落库初始记录
-        saveInitialRecord(taskId, sessionId, instanceId, request.projectCode(),
-                request.sql(), cleanSql, vr.tableNames(), event.getFingerprint());
+        // 10. 落库
+        String taskId = result.getTaskId() != null ? result.getTaskId() : UUID.randomUUID().toString();
+        saveDiagnosisRecord(taskId, sessionId, instanceId, request.projectCode(),
+                request.sql(), cleanSql, vr.tableNames(), event.getFingerprint(), result);
 
-        // 12. 审计日志
+        // 11. 审计日志
         auditLogger.log(taskId, sessionId, instanceId, request.sql().length(),
-                !maskedSql.equals(cleanSql), vr.tableNames().toString(), 0, "SUBMITTED");
+                !maskedSql.equals(cleanSql), vr.tableNames().toString(),
+                result.getDurationMs(), result.isCompleted() ? "COMPLETED" : "FAILED");
 
-        // 13. 秒返
-        return ResponseEntity.accepted().body(SqlAnalyzeResponse.pending(taskId));
+        // 12. 返回诊断结果
+        if (result.isCompleted()) {
+            return ResponseEntity.ok(new SqlAnalyzeResponse(
+                    taskId, "COMPLETED", result.getReport(), null, null));
+        }
+        return ResponseEntity.ok(new SqlAnalyzeResponse(
+                taskId, "FAILED", null, result.getError(), null));
     }
 
     private String buildPrompt(String ragContext, String sql) {
@@ -161,20 +160,26 @@ public class SqlAnalyzeController {
         }
     }
 
-    private void saveInitialRecord(String taskId, String sessionId, String instanceId,
-                                    String projectCode, String originalSql, String cleanSql,
-                                    List<String> tableNames, String fingerprint) {
+    private void saveDiagnosisRecord(String taskId, String sessionId, String instanceId,
+                                      String projectCode, String originalSql, String cleanSql,
+                                      List<String> tableNames, String fingerprint,
+                                      AgentClient.DiagnoseResult result) {
         try {
             DiagnosisRecord r = DiagnosisRecord.create(taskId, sessionId, instanceId, projectCode, "manual");
             r.setOriginalSql(originalSql);
             r.setCleanSql(cleanSql);
             r.setTableNames(tableNames != null ? tableNames.toString() : "[]");
             r.setFingerprint(fingerprint);
-            r.setStatus(DiagnosisRecord.STATUS_PENDING);
+            r.setStatus(result.isCompleted() ? DiagnosisRecord.STATUS_COMPLETED : DiagnosisRecord.STATUS_FAILED);
+            r.setReport(result.getReport());
+            r.setErrorMessage(result.getError());
+            r.setDurationMs(result.getDurationMs());
+            r.setToolCallCount(result.getToolCallCount());
             r.setCreatedAt(LocalDateTime.now());
+            r.setUpdatedAt(LocalDateTime.now());
             recordRepository.save(r);
         } catch (Exception e) {
-            log.warn("初始化诊断记录失败: {}", e.getMessage());
+            log.warn("诊断记录保存失败: {}", e.getMessage());
         }
     }
 
@@ -228,23 +233,25 @@ public class SqlAnalyzeController {
         return ResponseEntity.ok(m);
     }
 
-    /** 重新诊断——从历史记录取出原始SQL重新提交到RMQ */
+    /** 重新诊断——直发 Agent HTTP */
     @PostMapping("/retry/{taskId}")
     public ResponseEntity<?> retry(@PathVariable String taskId) {
         com.slowsql.persistence.DiagnosisRecord r = recordRepository.findByTaskId(taskId);
         if (r == null) return ResponseEntity.notFound().build();
-        String newTaskId = UUID.randomUUID().toString();
-        Map<String, Object> msg = new LinkedHashMap<>();
-        msg.put("taskId", newTaskId);
-        msg.put("sessionId", r.getSessionId());
-        msg.put("instanceId", r.getInstanceId());
-        msg.put("projectCode", r.getProjectCode());
-        msg.put("enrichedPrompt", "【重试诊断】\n【原始SQL】\n" + r.getOriginalSql());
-        msg.put("fingerprint", r.getFingerprint());
-        msg.put("source", r.getSource() != null ? r.getSource() : "retry");
-        msg.put("timestamp", LocalDateTime.now().toString());
-        taskProducer.sendHigh(msg);
-        return ResponseEntity.accepted().body(Map.of("taskId", newTaskId, "status", "pending"));
+        if (r.getOriginalSql() == null || r.getOriginalSql().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "原始SQL为空"));
+        }
+
+        AgentClient.DiagnoseResult result = agentClient.diagnose(
+                "【重试诊断】\n【原始SQL】\n" + r.getOriginalSql(),
+                r.getInstanceId(), r.getProjectCode());
+
+        String newTaskId = result.getTaskId() != null ? result.getTaskId() : UUID.randomUUID().toString();
+        return ResponseEntity.ok(Map.of(
+                "taskId", newTaskId,
+                "status", result.getStatus(),
+                "report", result.getReport() != null ? result.getReport() : "",
+                "error", result.getError() != null ? result.getError() : ""));
     }
 
     /** 诊断进度——前端轮询展示工具调用步骤 */

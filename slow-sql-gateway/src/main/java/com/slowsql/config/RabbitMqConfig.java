@@ -18,12 +18,10 @@ public class RabbitMqConfig {
     public static final String EXCHANGE = "diagnosis.exchange";
     public static final String DLX_EXCHANGE = "diagnosis.dlx";
 
-    public static final String QUEUE_TASK_HIGH = "diagnosis.task.high";
     public static final String QUEUE_TASK_NORMAL = "diagnosis.task.normal";
     public static final String QUEUE_DONE = "diagnosis.done.queue";
     public static final String QUEUE_DLQ = "diagnosis.dlq";
 
-    public static final String ROUTING_TASK_HIGH = "task.high";
     public static final String ROUTING_TASK_NORMAL = "task.normal";
     public static final String ROUTING_DONE = "done.*";
     public static final String ROUTING_DLQ = "dlq.#";
@@ -55,23 +53,7 @@ public class RabbitMqConfig {
         return ExchangeBuilder.topicExchange(EXCHANGE).durable(true).build();
     }
 
-    // ===== 高优队列（用户手动诊断） =====
-
-    @Bean
-    public Queue taskHighQueue() {
-        Map<String, Object> args = new HashMap<>();
-        args.put("x-dead-letter-exchange", DLX_EXCHANGE);
-        args.put("x-dead-letter-routing-key", "dlq.task");
-        args.put("x-message-ttl", TTL_TASK_MS);
-        return QueueBuilder.durable(QUEUE_TASK_HIGH).withArguments(args).build();
-    }
-
-    @Bean
-    public Binding taskHighBinding() {
-        return BindingBuilder.bind(taskHighQueue()).to(diagnosisExchange()).with(ROUTING_TASK_HIGH);
-    }
-
-    // ===== 普通队列（自动采集） =====
+    // ===== 自动采集队列 =====
 
     @Bean
     public Queue taskNormalQueue() {

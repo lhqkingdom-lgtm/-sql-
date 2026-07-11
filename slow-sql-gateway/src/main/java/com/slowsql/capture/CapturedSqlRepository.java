@@ -93,6 +93,27 @@ public class CapturedSqlRepository {
         }
     }
 
+    public CapturedSql findById(Long id) {
+        try {
+            List<CapturedSql> list = jdbc.query(
+                    "SELECT * FROM captured_sql WHERE id = ?", ROW_MAPPER, id);
+            return list.isEmpty() ? null : list.get(0);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 回写诊断报告到采集记录 */
+    public void updateReport(CapturedSql cs) {
+        try {
+            jdbc.update(
+                    "UPDATE captured_sql SET diagnosis_report = ?, severity = ? WHERE id = ?",
+                    cs.getDiagnosisReport(), cs.getSeverity(), cs.getId());
+        } catch (Exception e) {
+            log.warn("回写诊断报告失败: {}", e.getMessage());
+        }
+    }
+
     public CapturedSql findByFingerprint(String fingerprint) {
         try {
             List<CapturedSql> list = jdbc.query(

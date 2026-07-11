@@ -2,6 +2,9 @@ package com.slowsql.api;
 
 import com.slowsql.capture.CapturedSql;
 import com.slowsql.capture.CapturedSqlRepository;
+import com.slowsql.gateway.AgentClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,9 +14,15 @@ import java.util.*;
 @RequestMapping("/api/monitor")
 public class MonitorController {
 
-    private final CapturedSqlRepository repository;
+    private static final Logger log = LoggerFactory.getLogger(MonitorController.class);
 
-    public MonitorController(CapturedSqlRepository repository) { this.repository = repository; }
+    private final CapturedSqlRepository repository;
+    private final AgentClient agentClient;
+
+    public MonitorController(CapturedSqlRepository repository, AgentClient agentClient) {
+        this.repository = repository;
+        this.agentClient = agentClient;
+    }
 
     @GetMapping("/records")
     public ResponseEntity<?> records(@RequestParam(defaultValue = "50") int limit,
@@ -41,6 +50,37 @@ public class MonitorController {
     public ResponseEntity<?> aggregated(@RequestParam(required = false) String projectCode,
                                          @RequestParam(defaultValue = "50") int limit) {
         return ResponseEntity.ok(repository.aggregatedByFingerprint(projectCode, limit));
+    }
+
+    /** 前端按钮触发单条诊断——直发 Agent HTTP */
+    @PostMapping("/records/{id}/diagnose")
+    public ResponseEntity<?> diagnose(@PathVariable Long id) {
+        CapturedSql cs = repository.findById(id);
+        if (cs == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (cs.getSqlText() == null || cs.getSqlText().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "sql is empty"));
+        }
+
+        log.info("手动触发诊断: id={}, sql={}", id, cs.getSqlText().substring(0, Math.min(50, cs.getSqlText().length())));
+
+        AgentClient.DiagnoseResult result = agentClient.diagnose(
+                cs.getSqlText(), cs.getInstanceId(), cs.getProjectCode());
+
+        if (result.isCompleted()) {
+            cs.setDiagnosisReport(result.getReport());
+            cs.setSeverity(cs.getSeverity() != null ? cs.getSeverity() : "P2");
+            repository.updateReport(cs);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "id", id,
+                "taskId", result.getTaskId(),
+                "status", result.getStatus(),
+                "report", result.getReport() != null ? result.getReport() : "",
+                "error", result.getError() != null ? result.getError() : ""
+        ));
     }
 
     @PostMapping("/records/delete")

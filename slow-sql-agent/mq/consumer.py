@@ -43,9 +43,6 @@ async def start_consumer(
     # Exchange 绑定
     exchange = await channel.declare_exchange(
         "diagnosis.exchange", aio_pika.ExchangeType.TOPIC, durable=True)
-    high = await channel.declare_queue(
-        "diagnosis.task.high", durable=True, arguments=QUEUE_ARGS)
-    await high.bind(exchange, routing_key="task.high")
     normal = await channel.declare_queue(
         "diagnosis.task.normal", durable=True, arguments=QUEUE_ARGS)
     await normal.bind(exchange, routing_key="task.normal")
@@ -54,9 +51,8 @@ async def start_consumer(
         async with message.process():
             await _process(message, agent_factory, redis, publisher)
 
-    await high.consume(handle)
     await normal.consume(handle)
-    logger.info("Consumer started, listening on task.high + task.normal")
+    logger.info("Consumer started, listening on task.normal")
     return conn
 
 

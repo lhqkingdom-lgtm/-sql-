@@ -38,14 +38,7 @@ public class DiagnosisTaskProducer {
     }
 
     /**
-     * 投递诊断任务到高优先级队列。
-     */
-    public void sendHigh(Map<String, Object> taskMsg) {
-        send(taskMsg, "task.high");
-    }
-
-    /**
-     * 投递诊断任务到普通优先级队列（采集）。
+     * 投递诊断任务到队列（自动采集）。
      */
     public void sendNormal(Map<String, Object> taskMsg) {
         send(taskMsg, "task.normal");
