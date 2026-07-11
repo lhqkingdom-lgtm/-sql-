@@ -1,47 +1,47 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import request from '@/api/request'
+import { ref, computed } from 'vue'
+import http from '@/api/request'
 
 export const useAppStore = defineStore('app', () => {
-  const sidebarCollapsed = ref(false)
-  const healthStatus = ref('unknown')
   const projects = ref([])
-  const selectedProjectCode = ref('')
-  const instancesHealth = ref([])
+  const currentProject = ref('')
+  const instances = ref([])
 
-  const selectedProject = ref(null)
-  const selectedProjectInstances = ref([])
-
-  function toggleSidebar() { sidebarCollapsed.value = !sidebarCollapsed.value }
-
-  async function checkHealth() {
-    try { const d = await request.get('/health'); healthStatus.value = d?.status === 'UP' ? 'up' : 'down' } catch { healthStatus.value = 'down' }
-  }
+  const currentInstances = computed(() => {
+    const p = projects.value.find((p) => p.code === currentProject.value)
+    return p?.instanceIds || []
+  })
 
   async function fetchProjects() {
     try {
-      const d = await request.get('/api/sql/projects')
-      projects.value = d?.projects || []
-      if (projects.value.length && !selectedProjectCode.value) {
-        selectProject(projects.value[0].code)
+      const data = await http.get('/sql/projects')
+      projects.value = data.projects || []
+      if (!currentProject.value && projects.value.length > 0) {
+        currentProject.value = projects.value[0].code
       }
-    } catch { projects.value = [] }
+    } catch (e) {
+      console.warn('加载项目列表失败:', e.message)
+    }
   }
 
-  function selectProject(code) {
-    selectedProjectCode.value = code
-    const p = projects.value.find(p => p.code === code)
-    selectedProject.value = p
-    selectedProjectInstances.value = p?.instanceIds || []
+  async function fetchInstanceHealth() {
+    if (!currentProject.value) return
+    try {
+      instances.value = await http.get('/instances/health', {
+        params: { projectCode: currentProject.value },
+      })
+    } catch (e) {
+      instances.value = []
+    }
   }
 
-  async function fetchInstancesHealth() {
-    try { instancesHealth.value = await request.get('/api/sql/instances/health') } catch { instancesHealth.value = [] }
+  function setProject(code) {
+    currentProject.value = code
+    fetchInstanceHealth()
   }
 
   return {
-    sidebarCollapsed, healthStatus, projects, selectedProjectCode,
-    selectedProject, selectedProjectInstances, instancesHealth,
-    toggleSidebar, checkHealth, fetchProjects, selectProject, fetchInstancesHealth,
+    projects, currentProject, instances, currentInstances,
+    fetchProjects, fetchInstanceHealth, setProject,
   }
 })

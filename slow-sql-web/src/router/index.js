@@ -1,12 +1,41 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-const routes = [
-  { path: '/', redirect: '/dashboard' },
-  { path: '/dashboard', name: 'Dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '仪表盘', icon: 'DataAnalysis' } },
-  { path: '/diagnose', name: 'Diagnose', component: () => import('@/views/DiagnoseView.vue'), meta: { title: 'SQL诊断', icon: 'Monitor' } },
-  { path: '/monitor', name: 'Monitor', component: () => import('@/views/MonitorView.vue'), meta: { title: '采集记录', icon: 'List' } },
-  { path: '/rag', name: 'Rag', component: () => import('@/views/RagView.vue'), meta: { title: '知识库', icon: 'Reading' } },
-]
-
-const router = createRouter({ history: createWebHashHistory(), routes })
-export default router
+export default createRouter({
+  history: createWebHashHistory(),
+  routes: [
+    {
+      path: '/',
+      redirect: '/diagnose',
+    },
+    {
+      path: '/diagnose',
+      name: 'Diagnose',
+      component: () => import('@/views/ManualDiagnose.vue'),
+      meta: { title: '手动诊断', icon: 'Edit' },
+    },
+    {
+      path: '/polling',
+      name: 'Polling',
+      component: () => import('@/views/PollingManage.vue'),
+      meta: { title: '轮询管理', icon: 'Switch' },
+    },
+    {
+      path: '/records',
+      name: 'Records',
+      component: () => import('@/views/CapturedRecords.vue'),
+      meta: { title: '采集记录', icon: 'Document' },
+    },
+    {
+      path: '/history',
+      name: 'History',
+      component: () => import('@/views/DiagnosisHistory.vue'),
+      meta: { title: '诊断历史', icon: 'Clock' },
+    },
+    {
+      path: '/rag',
+      name: 'Rag',
+      component: () => import('@/views/KnowledgeBase.vue'),
+      meta: { title: '知识库', icon: 'Collection' },
+    },
+  ],
+})
