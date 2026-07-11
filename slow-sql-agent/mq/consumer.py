@@ -67,6 +67,7 @@ async def _process(message, agent_factory, redis, publisher):
     await redis.hset(f"diagnosis:task:{task.task_id}", mapping={
         "status": "running", "updatedAt": datetime.now().isoformat()
     })
+    await redis.expire(f"diagnosis:task:{task.task_id}", 1800)
 
     _instance_id_ctx.set(task.instance_id)
     agent, metrics, progress = agent_factory(ALL_TOOLS, task.task_id)
@@ -127,6 +128,7 @@ async def _process(message, agent_factory, redis, publisher):
     await redis.hset(f"diagnosis:task:{task.task_id}", mapping={
         "status": diag.status, "updatedAt": datetime.now().isoformat()
     })
+    await redis.expire(f"diagnosis:task:{task.task_id}", 1800)
     if task.fingerprint and diag.status == "completed":
         await redis.setex(f"diagnosis:result:fp:{task.fingerprint}", 1800,
                           diag.report or "")
