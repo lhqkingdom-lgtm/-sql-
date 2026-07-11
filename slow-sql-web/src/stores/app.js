@@ -42,15 +42,10 @@ export const useAppStore = defineStore('app', () => {
   async function fetchDatabases() {
     if (!currentProject.value) return
     try {
-      const data = await http.get('/monitor/records', {
-        params: { projectCode: currentProject.value, size: 999 }
-      })
-      const dbSet = new Set()
-      ;(data.records || []).forEach(r => { if (r.databaseName) dbSet.add(r.databaseName) })
-      databases.value = [...dbSet].sort()
-      if (!databases.value.includes(currentDatabase.value)) {
-        currentDatabase.value = ''
-      }
+      const p = projects.value.find(x => x.code === currentProject.value)
+      const iid = p?.instanceIds?.[0]
+      if (!iid) { databases.value = []; return }
+      databases.value = await http.get('/monitor/databases', { params: { instanceId: iid } }) || []
     } catch { databases.value = [] }
   }
 

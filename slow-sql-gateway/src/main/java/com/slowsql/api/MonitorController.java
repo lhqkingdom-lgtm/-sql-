@@ -2,10 +2,12 @@ package com.slowsql.api;
 
 import com.slowsql.capture.CapturedSql;
 import com.slowsql.capture.CapturedSqlRepository;
+import com.slowsql.config.DataSourceManager;
 import com.slowsql.gateway.AgentClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -18,10 +20,13 @@ public class MonitorController {
 
     private final CapturedSqlRepository repository;
     private final AgentClient agentClient;
+    private final DataSourceManager dataSourceManager;
 
-    public MonitorController(CapturedSqlRepository repository, AgentClient agentClient) {
+    public MonitorController(CapturedSqlRepository repository, AgentClient agentClient,
+                              DataSourceManager dataSourceManager) {
         this.repository = repository;
         this.agentClient = agentClient;
+        this.dataSourceManager = dataSourceManager;
     }
 
     @GetMapping("/records")
@@ -43,6 +48,28 @@ public class MonitorController {
         result.put("page", page);
         result.put("size", size);
         return ResponseEntity.ok(result);
+    }
+
+    /** 实例的数据库列表 */
+    @GetMapping("/databases")
+    public ResponseEntity<?> databases(@RequestParam String instanceId) {
+        try {
+            JdbcTemplate jt = dataSourceManager.getTemplate(instanceId);
+            List<Map<String, Object>> dbs = jt.queryForList("SHOW DATABASES");
+            List<String> names = new ArrayList<>();
+            for (var db : dbs) {
+                String name = (String) db.get("Database");
+                if (name != null && !isSystemDb(name)) names.add(name);
+            }
+            return ResponseEntity.ok(names);
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    private boolean isSystemDb(String name) {
+        return name.equals("information_schema") || name.equals("mysql")
+            || name.equals("performance_schema") || name.equals("sys");
     }
 
     /** 指纹聚合视图 */
