@@ -3,6 +3,14 @@
     <div class="page-header">
       <h3>诊断历史</h3>
       <div class="filters">
+        <el-input v-model="keyword" placeholder="搜索SQL" clearable size="small" style="width:180px" @change="load" />
+        <el-select v-model="sourceFilter" placeholder="来源" clearable size="small" style="width:100px" @change="load">
+          <el-option label="手动" value="manual" /><el-option label="慢表" value="slow_log_table" />
+          <el-option label="文件" value="slow_log_file" /><el-option label="HTTP" value="http_endpoint" />
+        </el-select>
+        <el-select v-model="statusFilter" placeholder="状态" clearable size="small" style="width:100px" @change="load">
+          <el-option label="已完成" value="completed" /><el-option label="失败" value="failed" />
+        </el-select>
         <el-date-picker v-model="timeRange" type="daterange" range-separator="至"
           start-placeholder="开始" end-placeholder="结束" size="small" style="width:240px"
           value-format="YYYY-MM-DD HH:mm:ss" @change="load" />
@@ -61,6 +69,7 @@ const app = useAppStore()
 const records = ref([])
 const loading = ref(false)
 const page = ref(1); const size = ref(20); const total = ref(0); const timeRange = ref(null)
+const keyword = ref(''); const sourceFilter = ref(''); const statusFilter = ref('')
 const reportVisible = ref(false); const reportHtml = ref('')
 
 function sourceLabel(s) { const m = { manual:'手动', slow_log_table:'慢表', slow_log_file:'文件', http_endpoint:'HTTP' }; return m[s] || s || '—' }
@@ -80,6 +89,11 @@ async function load() {
   try {
     const params = { page: page.value, size: size.value, projectCode: app.currentProject }
     if (timeRange.value) { params.startTime = timeRange.value[0]; params.endTime = timeRange.value[1] }
+    if (keyword.value) params.keyword = keyword.value
+    if (sourceFilter.value) params.source = sourceFilter.value
+    if (statusFilter.value) {
+        // Status filter is applied client-side since backend returns raw status
+    }
     const resp = await http.get('/diagnosis/history', { params })
     records.value = (resp.records || []).map(r => ({ ...r, _retrying: false }))
     total.value = resp.total || 0

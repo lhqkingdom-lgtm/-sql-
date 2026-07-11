@@ -230,7 +230,10 @@ public class CapturedSqlRepository {
     }
 
     public List<CapturedSql> findByFilters(String projectCode, String instanceId, String databaseName,
-                                            String severity, String startTime, String endTime, int offset, int size) {
+                                            String severity, String startTime, String endTime,
+                                            Double minQueryTime, Double maxQueryTime,
+                                            Boolean diagnosed, String keyword,
+                                            int offset, int size) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM captured_sql WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
@@ -240,6 +243,13 @@ public class CapturedSqlRepository {
             if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }
+            if (minQueryTime != null) { sql.append(" AND query_time_sec >= ?"); params.add(minQueryTime); }
+            if (maxQueryTime != null) { sql.append(" AND query_time_sec <= ?"); params.add(maxQueryTime); }
+            if (diagnosed != null) {
+                sql.append(diagnosed ? " AND diagnosis_report IS NOT NULL AND diagnosis_report != 'N/A'"
+                                     : " AND (diagnosis_report IS NULL OR diagnosis_report = 'N/A')");
+            }
+            if (keyword != null && !keyword.isEmpty()) { sql.append(" AND sql_text LIKE ?"); params.add("%" + keyword + "%"); }
             sql.append(" ORDER BY captured_at DESC LIMIT ?, ?");
             params.add(offset); params.add(size);
             return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());
@@ -247,7 +257,9 @@ public class CapturedSqlRepository {
     }
 
     public int countByFilters(String projectCode, String instanceId, String databaseName,
-                              String severity, String startTime, String endTime) {
+                              String severity, String startTime, String endTime,
+                              Double minQueryTime, Double maxQueryTime,
+                              Boolean diagnosed, String keyword) {
         try {
             StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM captured_sql WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
@@ -257,6 +269,13 @@ public class CapturedSqlRepository {
             if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }
+            if (minQueryTime != null) { sql.append(" AND query_time_sec >= ?"); params.add(minQueryTime); }
+            if (maxQueryTime != null) { sql.append(" AND query_time_sec <= ?"); params.add(maxQueryTime); }
+            if (diagnosed != null) {
+                sql.append(diagnosed ? " AND diagnosis_report IS NOT NULL AND diagnosis_report != 'N/A'"
+                                     : " AND (diagnosis_report IS NULL OR diagnosis_report = 'N/A')");
+            }
+            if (keyword != null && !keyword.isEmpty()) { sql.append(" AND sql_text LIKE ?"); params.add("%" + keyword + "%"); }
             Integer cnt = jdbc.queryForObject(sql.toString(), Integer.class, params.toArray());
             return cnt != null ? cnt : 0;
         } catch (Exception e) { return 0; }

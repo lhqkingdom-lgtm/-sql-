@@ -146,9 +146,11 @@ public class DiagnosisRecordRepository {
         }
     }
 
-    /** 查询诊断历史（可筛选项目/实例/时间，分页） */
+    /** 查询诊断历史（可筛选项目/实例/时间/来源/关键词，分页） */
     public List<DiagnosisRecord> findHistory(String projectCode, String instanceId,
-                                              String startTime, String endTime, int offset, int size) {
+                                              String startTime, String endTime,
+                                              String source, String keyword,
+                                              int offset, int size) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM diagnosis_record WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
@@ -156,13 +158,19 @@ public class DiagnosisRecordRepository {
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND created_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND created_at <= ?"); params.add(endTime); }
+            if (source != null && !source.isEmpty()) { sql.append(" AND source = ?"); params.add(source); }
+            if (keyword != null && !keyword.isEmpty()) {
+                sql.append(" AND (original_sql LIKE ? OR clean_sql LIKE ?)");
+                params.add("%" + keyword + "%"); params.add("%" + keyword + "%");
+            }
             sql.append(" ORDER BY created_at DESC LIMIT ?, ?");
             params.add(offset); params.add(size);
             return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());
         } catch (Exception e) { return List.of(); }
     }
 
-    public int countHistory(String projectCode, String instanceId, String startTime, String endTime) {
+    public int countHistory(String projectCode, String instanceId, String startTime, String endTime,
+                            String source, String keyword) {
         try {
             StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM diagnosis_record WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
@@ -170,6 +178,11 @@ public class DiagnosisRecordRepository {
             if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND created_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND created_at <= ?"); params.add(endTime); }
+            if (source != null && !source.isEmpty()) { sql.append(" AND source = ?"); params.add(source); }
+            if (keyword != null && !keyword.isEmpty()) {
+                sql.append(" AND (original_sql LIKE ? OR clean_sql LIKE ?)");
+                params.add("%" + keyword + "%"); params.add("%" + keyword + "%");
+            }
             Integer cnt = jdbc.queryForObject(sql.toString(), Integer.class, params.toArray());
             return cnt != null ? cnt : 0;
         } catch (Exception e) { return 0; }

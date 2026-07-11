@@ -3,9 +3,14 @@
     <div class="page-header">
       <h3>采集记录</h3>
       <div class="filters">
+        <el-input v-model="keyword" placeholder="搜索SQL" clearable size="small" style="width:180px" @change="load" />
         <el-select v-model="severity" placeholder="严重度" clearable size="small" style="width:90px" @change="load">
           <el-option label="P0" value="P0" /><el-option label="P1" value="P1" /><el-option label="P2" value="P2" />
         </el-select>
+        <el-select v-model="diagnosed" placeholder="状态" clearable size="small" style="width:100px" @change="load">
+          <el-option label="已诊断" :value="true" /><el-option label="未诊断" :value="false" />
+        </el-select>
+        <el-input v-model="minQueryTime" placeholder="最小用时(s)" size="small" style="width:120px" @change="load" />
         <el-date-picker v-model="timeRange" type="daterange" range-separator="至"
           start-placeholder="开始" end-placeholder="结束" size="small" style="width:240px"
           value-format="YYYY-MM-DD HH:mm:ss" @change="load" />
@@ -73,6 +78,9 @@ const records = ref([])
 const loading = ref(false)
 const severity = ref('')
 const timeRange = ref(null)
+const keyword = ref('')
+const diagnosed = ref(null)
+const minQueryTime = ref('')
 const page = ref(1); const size = ref(20); const total = ref(0)
 const reportVisible = ref(false); const reportHtml = ref('')
 
@@ -86,6 +94,9 @@ async function load() {
     if (app.currentDatabase) params.databaseName = app.currentDatabase
     if (severity.value) params.severity = severity.value
     if (timeRange.value) { params.startTime = timeRange.value[0]; params.endTime = timeRange.value[1] }
+    if (keyword.value) params.keyword = keyword.value
+    if (diagnosed.value !== null) params.diagnosed = diagnosed.value
+    if (minQueryTime.value) params.minQueryTime = Number(minQueryTime.value)
     const resp = await http.get('/monitor/records', { params })
     records.value = (resp.records || []).map(r => ({ ...r, _diagnosing: false }))
     total.value = resp.total || 0

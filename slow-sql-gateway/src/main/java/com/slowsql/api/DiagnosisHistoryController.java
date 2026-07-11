@@ -22,11 +22,14 @@ public class DiagnosisHistoryController {
                                       @RequestParam(required = false) String instanceId,
                                       @RequestParam(required = false) String startTime,
                                       @RequestParam(required = false) String endTime,
+                                      @RequestParam(required = false) String source,
+                                      @RequestParam(required = false) String keyword,
                                       @RequestParam(defaultValue = "1") int page,
                                       @RequestParam(defaultValue = "20") int size) {
         int offset = (page - 1) * size;
-        List<DiagnosisRecord> records = repository.findHistory(projectCode, instanceId, startTime, endTime, offset, size);
-        int total = repository.countHistory(projectCode, instanceId, startTime, endTime);
+        List<DiagnosisRecord> records = repository.findHistory(projectCode, instanceId,
+                startTime, endTime, source, keyword, offset, size);
+        int total = repository.countHistory(projectCode, instanceId, startTime, endTime, source, keyword);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("records", records.stream().map(this::toSummary).toList());
         result.put("total", total);
