@@ -25,24 +25,23 @@ public class MonitorController {
     }
 
     @GetMapping("/records")
-    public ResponseEntity<?> records(@RequestParam(defaultValue = "50") int limit,
+    public ResponseEntity<?> records(@RequestParam(defaultValue = "1") int page,
+                                      @RequestParam(defaultValue = "20") int size,
                                       @RequestParam(required = false) String projectCode,
                                       @RequestParam(required = false) String instanceId,
                                       @RequestParam(required = false) String severity,
                                       @RequestParam(required = false) String startTime,
                                       @RequestParam(required = false) String endTime) {
-        List<CapturedSql> list;
-        boolean hasFilter = (projectCode != null && !projectCode.isEmpty())
-                         || (instanceId != null && !instanceId.isEmpty())
-                         || (severity != null && !severity.isEmpty())
-                         || (startTime != null && !startTime.isEmpty())
-                         || (endTime != null && !endTime.isEmpty());
-        if (hasFilter) {
-            list = repository.findByFilters(projectCode, instanceId, severity, startTime, endTime, limit);
-        } else {
-            list = repository.findAll(limit);
-        }
-        return ResponseEntity.ok(list.stream().map(this::toMap).toList());
+        int offset = (page - 1) * size;
+        List<CapturedSql> list = repository.findByFilters(projectCode, instanceId, severity,
+                startTime, endTime, offset, size);
+        int total = repository.countByFilters(projectCode, instanceId, severity, startTime, endTime);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("records", list.stream().map(this::toMap).toList());
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        return ResponseEntity.ok(result);
     }
 
     /** 指纹聚合视图 */
@@ -105,6 +104,7 @@ public class MonitorController {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", c.getId());
         m.put("sqlText", c.getSqlText());
+        m.put("databaseName", c.getDatabaseName());
         m.put("queryTimeSec", c.getQueryTimeSec());
         m.put("instanceId", c.getInstanceId());
         m.put("projectCode", c.getProjectCode());

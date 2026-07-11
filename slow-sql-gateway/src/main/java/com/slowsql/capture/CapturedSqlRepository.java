@@ -230,7 +230,7 @@ public class CapturedSqlRepository {
     }
 
     public List<CapturedSql> findByFilters(String projectCode, String instanceId, String severity,
-                                            String startTime, String endTime, int limit) {
+                                            String startTime, String endTime, int offset, int size) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM captured_sql WHERE 1=1");
             java.util.List<Object> params = new java.util.ArrayList<>();
@@ -239,9 +239,24 @@ public class CapturedSqlRepository {
             if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
             if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
             if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }
-            sql.append(" ORDER BY captured_at DESC LIMIT ?");
-            params.add(limit);
+            sql.append(" ORDER BY captured_at DESC LIMIT ?, ?");
+            params.add(offset); params.add(size);
             return jdbc.query(sql.toString(), ROW_MAPPER, params.toArray());
         } catch (Exception e) { return List.of(); }
+    }
+
+    public int countByFilters(String projectCode, String instanceId, String severity,
+                              String startTime, String endTime) {
+        try {
+            StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM captured_sql WHERE 1=1");
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            if (projectCode != null && !projectCode.isEmpty()) { sql.append(" AND project_code = ?"); params.add(projectCode); }
+            if (instanceId != null && !instanceId.isEmpty()) { sql.append(" AND instance_id = ?"); params.add(instanceId); }
+            if (severity != null && !severity.isEmpty()) { sql.append(" AND severity = ?"); params.add(severity); }
+            if (startTime != null && !startTime.isEmpty()) { sql.append(" AND captured_at >= ?"); params.add(startTime); }
+            if (endTime != null && !endTime.isEmpty()) { sql.append(" AND captured_at <= ?"); params.add(endTime); }
+            Integer cnt = jdbc.queryForObject(sql.toString(), Integer.class, params.toArray());
+            return cnt != null ? cnt : 0;
+        } catch (Exception e) { return 0; }
     }
 }

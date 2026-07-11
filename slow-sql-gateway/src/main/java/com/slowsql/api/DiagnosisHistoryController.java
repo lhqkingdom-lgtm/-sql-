@@ -20,9 +20,17 @@ public class DiagnosisHistoryController {
     @GetMapping("/history")
     public ResponseEntity<?> history(@RequestParam(required = false) String projectCode,
                                       @RequestParam(required = false) String instanceId,
-                                      @RequestParam(defaultValue = "20") int limit) {
-        List<DiagnosisRecord> records = repository.findHistory(projectCode, instanceId, limit);
-        return ResponseEntity.ok(records.stream().map(this::toSummary).toList());
+                                      @RequestParam(defaultValue = "1") int page,
+                                      @RequestParam(defaultValue = "20") int size) {
+        int offset = (page - 1) * size;
+        List<DiagnosisRecord> records = repository.findHistory(projectCode, instanceId, offset, size);
+        int total = repository.countHistory(projectCode, instanceId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("records", records.stream().map(this::toSummary).toList());
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/history/{taskId}")
@@ -43,6 +51,7 @@ public class DiagnosisHistoryController {
         m.put("cleanSql", r.getCleanSql());
         m.put("status", r.getStatus());
         m.put("source", r.getSource());
+        m.put("fingerprint", r.getFingerprint());
         m.put("durationMs", r.getDurationMs());
         m.put("toolCallCount", r.getToolCallCount());
         m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
