@@ -75,7 +75,7 @@ const page = ref(1); const size = ref(20); const total = ref(0); const timeRange
 const keyword = ref(''); const sourceFilter = ref(''); const statusFilter = ref('')
 const reportVisible = ref(false); const reportHtml = ref('')
 
-function sourceLabel(s) { const m = { manual:'手动', slow_log_table:'慢表', slow_log_file:'文件', http_endpoint:'HTTP' }; return m[s] || s || '—' }
+function sourceLabel(s) { const m = { manual:'手动', slow_log_table:'PS', slow_log_file:'文件', http_endpoint:'HTTP' }; return m[s] || s || '—' }
 function statusLabel(s) { const v = (s||'').toLowerCase(); if (v==='completed') return '已完成'; if (v==='failed') return '失败'; if (v==='running') return '诊断中'; return s||'—' }
 function statusType(s) { const v = (s||'').toLowerCase(); if (v==='completed') return 'success'; if (v==='failed') return 'danger'; return 'info' }
 function sqlPreview(row) { const sql = row.cleanSql || row.originalSql || row.sqlPreview || ''; return sql.length > 80 ? sql.substring(0,80)+'...' : sql }

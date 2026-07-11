@@ -85,7 +85,7 @@ const page = ref(1); const size = ref(20); const total = ref(0)
 const reportVisible = ref(false); const reportHtml = ref('')
 
 function fmtTime(s) { return s != null && s !== 0 ? Number(s).toFixed(2) + 's' : '0.00s' }
-function sourceLabel(s) { const m = { slow_log_table:'慢日志表', slow_log_file:'慢日志文件', http_endpoint:'HTTP', manual:'手动' }; return m[s] || s || '—' }
+function sourceLabel(s) { const m = { slow_log_table:'PS', slow_log_file:'慢日志文件', http_endpoint:'HTTP', manual:'手动' }; return m[s] || s || '—' }
 
 async function load() {
   loading.value = true

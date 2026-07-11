@@ -256,23 +256,47 @@ public class SlowSqlCaptureScheduler {
 
     private List<Map<String, Object>> fetchSlowLog(String instanceId) {
         try {
-            // 首次轮询：仅记录时间锚点，不采集历史数据
+            // 首次轮询：只记录锚点，不采集历史
             if (!lastCheckMap.containsKey(instanceId)) {
                 lastCheckMap.put(instanceId, LocalDateTime.now());
                 return List.of();
             }
-            LocalDateTime last = lastCheckMap.get(instanceId);
-            String sql = "SELECT sql_text, query_time, lock_time, rows_examined, rows_sent, start_time, db " +
-                         "FROM mysql.slow_log WHERE start_time > ? ORDER BY start_time DESC LIMIT 200";
+            String sql = """
+                    SELECT SQL_TEXT AS sql_text,
+                           TIMER_WAIT / 1000000000000.0 AS query_time,
+                           0 AS lock_time,
+                           ROWS_EXAMINED AS rows_examined,
+                           ROWS_SENT AS rows_sent,
+                           NOW() AS start_time,
+                           CURRENT_SCHEMA AS db
+                    FROM performance_schema.events_statements_history
+                    WHERE CURRENT_SCHEMA NOT IN
+                           ('information_schema','mysql','performance_schema','sys','slow_sql_platform')
+                      AND SQL_TEXT IS NOT NULL
+                      AND DIGEST_TEXT IS NOT NULL
+                      AND SQL_TEXT NOT LIKE 'SET %'
+                      AND SQL_TEXT NOT LIKE 'SHOW %'
+                      AND SQL_TEXT NOT LIKE 'SELECT @@%'
+                      AND SQL_TEXT NOT LIKE '%ApplicationName%'
+                      AND TIMER_WAIT / 1000000000000.0 > ?
+                    ORDER BY TIMER_START DESC
+                    LIMIT 200""";
             var jt = dataSourceManager.getMonitoringTemplate(instanceId);
-            List<Map<String, Object>> rows = jt.queryForList(sql,
-                    java.sql.Timestamp.valueOf(last));
+            double minSec = getMinQueryTimeFor(instanceId);
+            List<Map<String, Object>> rows = jt.queryForList(sql, minSec);
             lastCheckMap.put(instanceId, LocalDateTime.now());
+            if (!rows.isEmpty()) log.info("PS 采集到 {} 条", rows.size());
             return rows;
         } catch (Exception e) {
-            log.debug("慢日志读取失败 [{}] (可能未开启slow_log): {}", instanceId, e.getMessage());
+            log.warn("PS 读取失败 [{}]: {}", instanceId, e.getMessage());
             return List.of();
         }
+    }
+
+    private double getMinQueryTimeFor(String instanceId) {
+        Map<String, Object> cfg = captureStatus.getPollingConfigForInstance(instanceId);
+        Object v = cfg.get("minQueryTimeSec");
+        return v instanceof Number n ? n.doubleValue() : 0.5;
     }
 
     private boolean isNoise(String sql) {

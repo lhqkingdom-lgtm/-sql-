@@ -322,18 +322,18 @@ public class DataAccessController {
         if (!isAuthorized(token)) return ResponseEntity.status(403).body("Forbidden");
 
         try {
-            JdbcTemplate jt = getTemplate(instanceId);
-            List<Map<String, Object>> tables = jt.queryForList("SHOW TABLES FROM mysql LIKE 'slow_log'");
-            if (tables.isEmpty()) return ResponseEntity.ok("mysql.slow_log 表不存在或未启用。");
-
+            JdbcTemplate jt = dataSourceManager.getMonitoringTemplate(instanceId);
             List<Map<String, Object>> stats = jt.queryForList(
-                    "SELECT sql_text, COUNT(*) AS times, AVG(query_time) AS avg_time, MAX(query_time) AS max_time, " +
-                    "AVG(rows_examined) AS avg_rows " +
-                    "FROM mysql.slow_log WHERE start_time > DATE_SUB(NOW(), INTERVAL 24 HOUR) AND sql_text IS NOT NULL " +
-                    "GROUP BY sql_text ORDER BY times DESC LIMIT 20");
-            if (stats.isEmpty()) return ResponseEntity.ok("最近24小时无慢SQL记录。");
+                    "SELECT SQL_TEXT AS sql_text, COUNT(*) AS times, " +
+                    "AVG(TIMER_WAIT/1000000000000) AS avg_time, MAX(TIMER_WAIT/1000000000000) AS max_time, " +
+                    "AVG(ROWS_EXAMINED) AS avg_rows " +
+                    "FROM performance_schema.events_statements_history " +
+                    "WHERE CURRENT_SCHEMA NOT IN ('information_schema','mysql','performance_schema','sys','slow_sql_platform') " +
+                    "AND SQL_TEXT IS NOT NULL " +
+                    "GROUP BY SQL_TEXT ORDER BY times DESC LIMIT 20");
+            if (stats.isEmpty()) return ResponseEntity.ok("Performance Schema 暂无慢SQL记录。");
 
-            StringBuilder sb = new StringBuilder("最近24小时慢SQL Top" + stats.size() + "：\n\n");
+            StringBuilder sb = new StringBuilder("Performance Schema 慢SQL Top" + stats.size() + "：\n\n");
             for (int i = 0; i < stats.size(); i++) {
                 Map<String, Object> r = stats.get(i);
                 sb.append(String.format("%d. 出现%s次 | 平均%.2fs | 最大%.2fs | 平均扫描%s行\n   %s\n\n",
@@ -342,7 +342,7 @@ public class DataAccessController {
             }
             return ResponseEntity.ok(sb.toString());
         } catch (Exception e) {
-            return ResponseEntity.ok("错误：慢日志统计失败 - ");
+            return ResponseEntity.ok("错误：Performance Schema 查询失败 - " + e.getMessage());
         }
     }
 
