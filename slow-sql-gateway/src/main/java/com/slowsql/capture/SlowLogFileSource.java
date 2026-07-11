@@ -38,6 +38,12 @@ public class SlowLogFileSource implements CaptureSource {
     public SlowLogFileSource(SqlMonitorProperties.CaptureConfig.SourceConfig config) {
         this.config = config;
         this.logFile = config.getPath() != null ? Path.of(config.getPath()) : null;
+        // 首次启动从当前文件末尾开始，不采集历史数据
+        if (logFile != null && Files.exists(logFile)) {
+            try {
+                this.lastOffset = Files.size(logFile);
+            } catch (IOException e) { /* ignore, keep 0 */ }
+        }
     }
 
     @Override public String name() { return "slow_log_file"; }

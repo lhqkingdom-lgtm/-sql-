@@ -249,8 +249,12 @@ public class SlowSqlCaptureScheduler {
 
     private List<Map<String, Object>> fetchSlowLog(String instanceId) {
         try {
-            LocalDateTime last = lastCheckMap.getOrDefault(instanceId,
-                    LocalDateTime.now().minusMinutes(10));
+            // 首次轮询：仅记录时间锚点，不采集历史数据
+            if (!lastCheckMap.containsKey(instanceId)) {
+                lastCheckMap.put(instanceId, LocalDateTime.now());
+                return List.of();
+            }
+            LocalDateTime last = lastCheckMap.get(instanceId);
             String sql = "SELECT sql_text, query_time, lock_time, rows_examined, rows_sent, start_time " +
                          "FROM mysql.slow_log WHERE start_time > ? ORDER BY start_time DESC LIMIT 200";
             var jt = dataSourceManager.getMonitoringTemplate(instanceId);
