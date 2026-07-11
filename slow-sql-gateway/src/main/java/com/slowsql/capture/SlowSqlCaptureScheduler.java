@@ -165,6 +165,13 @@ public class SlowSqlCaptureScheduler {
                     : CapturedSql.fingerprint(event.getSqlText());
             event.setFingerprint(fp);
 
+            // 自动补充 projectCode（文件源/表源可能缺失）
+            if ((event.getProjectCode() == null || event.getProjectCode().isEmpty())
+                    && event.getInstanceId() != null && !event.getInstanceId().isEmpty()) {
+                String pc = dataSourceManager.findProjectCode(event.getInstanceId());
+                if (pc != null) event.setProjectCode(pc);
+            }
+
             if (!dedupService.tryRegister(fp)) { continue; }
 
             CapturedSql cs = CapturedSql.fromEvent(event);
