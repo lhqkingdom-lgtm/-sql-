@@ -302,23 +302,29 @@ docker compose up -d
 
 ## 📸 效果展示
 
-> 💡 以下截图展示了系统的核心操作流程。
-
 ### 采集记录 —— 三种采集源自动入库
 
 支持慢日志表（Performance Schema）、日志文件（tail -f 实时解析）、HTTP 端点（外部推送）三种方式。支持按库名/来源/严重级别/关键字多维筛选。
 
-### AI 诊断报告 —— 三段式专业分析
+![采集记录](screenshots/01-captured-records.png)
+
+### 诊断历史 —— AI 三段式诊断报告
 
 Agent 自动调用 DDL、EXPLAIN、索引检查等工具，输出**核心瓶颈 → 数据证据 → 优化建议**三段式报告，含具体 SQL 示例。
+
+![诊断历史](screenshots/02-diagnosis-history.png)
 
 ### 轮询管理 —— 采集源独立开关
 
 慢日志表、日志文件、HTTP 端点三种采集源可独立启停，支持自定义采集间隔、最小查询时间、回溯窗口等参数。
 
-### Docker 部署 —— 6 容器健康运行
+![轮询管理](screenshots/03-polling-manage.png)
 
-MySQL + Redis + RabbitMQ + Gateway + Agent + Frontend，一键启动，健康检查自动等待依赖就绪。
+### 基础设施 —— RabbitMQ 运行状态
+
+MySQL + Redis + RabbitMQ + Gateway + Agent + Frontend，6 容器健康运行。
+
+![RabbitMQ](screenshots/04-rabbitmq.png)
 
 ---
 
