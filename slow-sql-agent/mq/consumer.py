@@ -58,16 +58,24 @@ async def _process(message, agent_factory, redis, publisher):
         logger.warning("消息格式错误，丢弃")
         return
 
-    # 幂等
-    if await redis.exists(f"diagnosis:task:{task.task_id}"):
-        status = await redis.hget(f"diagnosis:task:{task.task_id}", "status")
-        if status in (b"completed", b"failed"):
-            return
+    logger.info(f"收到诊断任务: taskId={task.task_id}, instanceId={task.instance_id}")
 
-    await redis.hset(f"diagnosis:task:{task.task_id}", mapping={
-        "status": "running", "updatedAt": datetime.now().isoformat()
-    })
-    await redis.expire(f"diagnosis:task:{task.task_id}", 1800)
+    # 幂等
+    try:
+        if await redis.exists(f"diagnosis:task:{task.task_id}"):
+            status = await redis.hget(f"diagnosis:task:{task.task_id}", "status")
+            if status in (b"completed", b"failed"):
+                return
+    except Exception as e:
+        logger.warning(f"Redis幂等检查异常(继续): {e}")
+
+    try:
+        await redis.hset(f"diagnosis:task:{task.task_id}", mapping={
+            "status": "running", "updatedAt": datetime.now().isoformat()
+        })
+        await redis.expire(f"diagnosis:task:{task.task_id}", 1800)
+    except Exception as e:
+        logger.warning(f"Redis写状态异常(继续): {e}")
 
     _instance_id_ctx.set(task.instance_id)
     agent, metrics, progress = agent_factory(ALL_TOOLS, task.task_id)

@@ -12,13 +12,13 @@ class Settings(BaseSettings):
     llm_max_retries: int = 1
 
     # Java Gateway
-    java_gateway_base_url: str = "http://localhost:8081/api/data"
+    java_gateway_base_url: str = "http://localhost:8080/api/data"
     java_gateway_token: str = "slow-sql-internal-token-v5"
     java_gateway_timeout: int = 10
 
     # Agent
-    agent_max_iterations: int = 15
-    agent_token_budget: int = 30000
+    agent_max_iterations: int = 25
+    agent_token_budget: int = 60000
     agent_memory_window: int = 20
 
     # Redis

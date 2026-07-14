@@ -38,13 +38,16 @@
           <div class="instance-bottom">
             <div class="source-row">
               <span class="source-label">采集源:</span>
-              <el-checkbox v-model="inst._sources" label="slow_log_table" size="small" @change="saveSources(inst)">Performance Schema</el-checkbox>
-              <el-checkbox v-model="inst._sources" label="slow_log_file" size="small" @change="saveSources(inst)">慢日志文件</el-checkbox>
-              <el-checkbox v-model="inst._sources" label="http_endpoint" size="small" @change="saveSources(inst)">HTTP端点</el-checkbox>
+              <el-radio-group v-model="inst._source" size="small" @change="saveSources(inst)">
+                <el-radio label="slow_log_table">Performance Schema</el-radio>
+                <el-radio label="slow_log_file">慢日志文件</el-radio>
+                <el-radio label="http_endpoint">HTTP端点</el-radio>
+              </el-radio-group>
             </div>
-            <div v-if="inst.lastCollectAt || inst.totalCollected > 0" class="stats-row">
+            <div v-if="inst.lastCollectAt || inst.totalCollected > 0 || inst.nextPollSec >= 0" class="stats-row">
               <span v-if="inst.lastCollectAt" class="meta">上次采集: {{ inst.lastCollectAt?.substring(0,19) }}</span>
               <span v-if="inst.totalCollected > 0" class="meta">已采集 {{ inst.totalCollected }} 条</span>
+              <span v-if="inst.nextPollSec != null && inst.nextPollSec >= 0" class="meta countdown">约 {{ inst.nextPollSec }} 秒后采集</span>
             </div>
             <div v-if="inst.lastError" class="meta error">{{ inst.lastError }}</div>
           </div>
@@ -118,16 +121,15 @@ async function load() {
       instances: (p.instances || []).map((inst) => ({
         ...inst,
         _enabled: inst.enabled !== false,
-        _sources: [],
+        _source: '',
       })),
     }))
     for (const p of projects.value) {
       for (const inst of p.instances || []) {
         try {
           const src = await http.get(`/capture/${inst.instanceId}/sources`)
-          const raw = src.sources || []
-          inst._sources = raw.includes('all') ? ['slow_log_table', 'slow_log_file', 'http_endpoint'] : raw
-        } catch { inst._sources = ['slow_log_table'] }
+          inst._source = src.source || ''
+        } catch { inst._source = '' }
       }
     }
   } catch (e) { console.error('加载轮询状态失败:', e.message) }
@@ -140,8 +142,16 @@ async function onToggle(inst, enable) {
     await http.post(`/capture/${inst.instanceId}/disable`).catch(() => {})
     return
   }
-  // 开启前弹出参数配置
+  // 开启前：PS / 文件源 → 弹出参数配置；HTTP → 直接开启
   inst._enabled = false  // 先回弹
+  const src = inst._source
+  if (src === 'http_endpoint') {
+    // HTTP 端点直接开启，无需参数
+    await http.post(`/capture/${inst.instanceId}/enable`)
+    inst._enabled = true
+    return
+  }
+  // PS / 文件源 → 弹窗配参数
   pendingInst.value = inst
   pollingConfig.value = { intervalSeconds: 60, minQueryTimeSec: 0.5 }
   try {
@@ -170,18 +180,10 @@ function cancelConfig() {
   pendingInst.value = null
 }
 
-async function toggleInstance(inst, enable) {
-  try {
-    if (enable) await http.post(`/capture/${inst.instanceId}/enable`)
-    else await http.post(`/capture/${inst.instanceId}/disable`)
-  } catch (e) { inst._enabled = !enable }
-}
-
 async function saveSources(inst) {
-  const allThree = ['slow_log_table', 'slow_log_file', 'http_endpoint']
-  const send = (inst._sources || []).length >= 3 ? ['all'] : (inst._sources || [])
-  try { await http.put(`/capture/${inst.instanceId}/sources`, { sources: send }) }
-  catch (e) { console.error('保存采集源失败:', e.message) }
+  try {
+    await http.put(`/capture/${inst.instanceId}/sources`, { source: inst._source || '' })
+  } catch (e) { console.error('保存采集源失败:', e.message) }
 }
 
 onMounted(load)

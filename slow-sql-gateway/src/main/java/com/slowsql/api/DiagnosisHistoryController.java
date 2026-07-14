@@ -66,6 +66,7 @@ public class DiagnosisHistoryController {
         m.put("instanceId", r.getInstanceId());
         m.put("sqlPreview", displaySql != null && displaySql.length() > 100
                 ? displaySql.substring(0, 100) + "..." : displaySql);
+        m.put("originalSql", r.getOriginalSql());
         m.put("cleanSql", r.getCleanSql());
         m.put("status", r.getStatus());
         m.put("source", r.getSource());

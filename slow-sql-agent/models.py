@@ -20,8 +20,8 @@ class DiagnosisResult(BaseModel):
     status: str
     report: str = ""
     error: str = ""
-    duration_ms: int = 0
-    tool_call_count: int = 0
+    duration_ms: int = Field(default=0, alias="durationMs")
+    tool_call_count: int = Field(default=0, alias="toolCallCount")
     fingerprint: str = ""
     instance_id: str = Field(default="", alias="instanceId")
     project_code: str = Field(default="", alias="projectCode")

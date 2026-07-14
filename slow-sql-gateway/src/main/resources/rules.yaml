@@ -1,0 +1,106 @@
+rules:
+  # ===== 军规 =====
+  - id: E001
+    category: 军规
+    title: 禁止 SELECT *
+    conditions:
+      - sql_contains: "SELECT *"
+    suggestion: "指定需要的列名，减少数据传输和回表开销"
+
+  - id: E002
+    category: 军规
+    title: WHERE 条件列禁止函数包裹
+    conditions:
+      - sql_pattern: "WHERE.*(DATE\\(|YEAR\\(|MONTH\\(|DATE_FORMAT\\()"
+    suggestion: "函数包裹索引列导致索引失效，改用范围查询（BETWEEN 或 >= <=）"
+
+  - id: E003
+    category: 军规
+    title: 禁止前置模糊匹配
+    conditions:
+      - sql_contains: "LIKE '%"
+    suggestion: "前置 % 无法使用索引，考虑全文索引或 Elasticsearch"
+
+  - id: E004
+    category: 军规
+    title: 禁止 ORDER BY RAND()
+    conditions:
+      - sql_contains: "ORDER BY RAND()"
+    suggestion: "ORDER BY RAND() 导致全表排序，改用应用层随机或 TABLESAMPLE"
+
+  - id: E005
+    category: 军规
+    title: 禁止大偏移量分页
+    conditions:
+      - sql_pattern: "LIMIT\\s+\\d{5,}"
+    suggestion: "大偏移量分页性能极差，改用游标分页（WHERE id > last_id LIMIT n）"
+
+  # ===== 优化 =====
+  - id: E101
+    category: 优化
+    title: 缺索引-全表扫描
+    conditions:
+      - explain_access_type: ALL
+      - explain_rows: "> 1000"
+    suggestion: "type=ALL 全表扫描且扫描行数 > 1000，为 WHERE/JOIN 条件列创建索引"
+
+  - id: E102
+    category: 优化
+    title: 隐式类型转换
+    conditions:
+      - explain_key_is_null: true
+      - sql_pattern: "WHERE\\s+\\w+\\s*=\\s*'\\d+'"
+    suggestion: "列类型与字符串比较值不匹配导致索引失效，确保类型一致"
+
+  - id: E103
+    category: 优化
+    title: 文件排序-缺排序索引
+    conditions:
+      - explain_extra_contains: "Using filesort"
+    suggestion: "ORDER BY 列缺少索引导致文件排序，为排序列创建索引"
+
+  - id: E104
+    category: 优化
+    title: 临时表-缺分组索引
+    conditions:
+      - explain_extra_contains: "Using temporary"
+    suggestion: "GROUP BY/DISTINCT 导致临时表，为分组列创建索引"
+
+  - id: E105
+    category: 优化
+    title: 回表过多-缺覆盖索引
+    conditions:
+      - explain_filtered: "< 20.0"
+    suggestion: "filtered < 20% 说明大量回表过滤，考虑创建覆盖索引包含 SELECT 列"
+
+  - id: E106
+    category: 优化
+    title: JOIN 无索引
+    conditions:
+      - explain_access_type: ALL
+      - sql_contains: JOIN
+    suggestion: "JOIN 列缺少索引导致全表扫描，为 JOIN ON 条件列创建索引"
+
+  - id: E107
+    category: 优化
+    title: 疑似笛卡尔积
+    conditions:
+      - sql_contains: "CROSS JOIN"
+    suggestion: "CROSS JOIN 产生笛卡尔积，确认是否需要关联条件，或缩小驱动表数据量"
+
+  # ===== 事故复盘 =====
+  - id: E201
+    category: 事故复盘
+    title: 大事务风险
+    conditions:
+      - sql_contains: "DELETE"
+      - explain_rows: "> 5000"
+    suggestion: "单次 DELETE > 5000 行可能锁表，考虑分批删除（LIMIT + 循环）"
+
+  - id: E202
+    category: 事故复盘
+    title: UPDATE 无 WHERE 风险
+    conditions:
+      - sql_contains: "UPDATE"
+      - sql_not_contains: WHERE
+    suggestion: "UPDATE 无 WHERE 条件会更新全表，确认是否遗漏条件"

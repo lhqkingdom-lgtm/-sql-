@@ -33,6 +33,14 @@
       <el-table-column label="用时" width="85" align="right">
         <template #default="{ row }">{{ fmtTime(row.queryTimeSec) }}</template>
       </el-table-column>
+      <el-table-column label="次数" width="55" align="center">
+        <template #default="{ row }">
+          <el-tooltip v-if="row.occurrence > 1" content="同指纹已缓存复用" placement="top">
+            <el-tag size="small" type="warning">{{ row.occurrence }}</el-tag>
+          </el-tooltip>
+          <span v-else style="color:#999">1</span>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-tag v-if="row.diagnosed" type="success" size="small">已诊断</el-tag>

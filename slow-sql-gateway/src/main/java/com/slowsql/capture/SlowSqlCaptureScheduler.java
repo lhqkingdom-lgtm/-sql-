@@ -5,7 +5,6 @@ import com.slowsql.config.SqlMonitorProperties;
 import com.slowsql.gateway.DiagnosisTaskProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -25,9 +24,14 @@ public class SlowSqlCaptureScheduler {
     private final EventNormalizer normalizer;
     private final HttpCaptureController httpController;
     private final CaptureStatusController captureStatus;
+    private final DiagnosisCacheService diagnosisCache;
     private final List<SlowLogFileSource> fileSources = new ArrayList<>();
 
-    private final Map<String, LocalDateTime> lastCheckMap = new java.util.concurrent.ConcurrentHashMap<>();
+    /** PS 采集增量锚点：每个实例记录最后采集到的 TIMER_START（picoseconds） */
+    private final Map<String, Long> lastTimerStartMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 文件源采集锚点：每个实例记录开启轮询的时间，只采集此后的慢日志 */
+    private final Map<String, LocalDateTime> fileAnchorMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     public SlowSqlCaptureScheduler(DataSourceManager dataSourceManager,
                                     SqlMonitorProperties properties,
@@ -37,7 +41,8 @@ public class SlowSqlCaptureScheduler {
                                     ImNotificationService notifier,
                                     EventNormalizer normalizer,
                                     HttpCaptureController httpController,
-                                    CaptureStatusController captureStatus) {
+                                    CaptureStatusController captureStatus,
+                                    DiagnosisCacheService diagnosisCache) {
         this.dataSourceManager = dataSourceManager;
         this.properties = properties;
         this.dedupService = dedupService;
@@ -47,6 +52,7 @@ public class SlowSqlCaptureScheduler {
         this.normalizer = normalizer;
         this.httpController = httpController;
         this.captureStatus = captureStatus;
+        this.diagnosisCache = diagnosisCache;
 
         // Initialize slow_log_file sources from yml config
         for (var src : properties.getCapture().getSources()) {
@@ -64,70 +70,67 @@ public class SlowSqlCaptureScheduler {
         }
     }
 
-    @Scheduled(fixedDelay = 60_000)
-    public void poll() {
+    /**
+     * PS 轮询——由 CaptureStatusController 按实例动态调度。
+     */
+    public void pollPsInstance(String instanceId) {
         SqlMonitorProperties.CaptureConfig cfg = properties.getCapture();
         if (!cfg.isEnabled()) return;
+        if (!captureStatus.isEnabled(instanceId)) return;
+        if (!captureStatus.isSourceEnabled(instanceId, "slow_log_table")) return;
 
-        // === 采集源 1: HTTP 端点 ===
-        if (httpController.isConfigured() && anyInstanceAllows("http_endpoint")) {
-            try {
-                List<SlowSqlEvent> httpEvents = httpController.collect();
-                processEvents(httpEvents);
-            } catch (Exception e) { log.warn("HTTP采集异常: {}", e.getMessage()); }
-        }
+        try {
+            String projectCode = dataSourceManager.findProjectCode(instanceId);
+            List<Map<String, Object>> rows = fetchSlowLog(instanceId);
+            if (rows == null || rows.isEmpty()) return;
 
-        // === 采集源 2: 慢日志文件 ===
-        if (anyInstanceAllows("slow_log_file")) {
-        for (SlowLogFileSource fileSrc : fileSources) {
-            try {
-                List<SlowSqlEvent> fileEvents = fileSrc.collect();
-                processEvents(fileEvents);
-            } catch (Exception e) { log.warn("慢日志文件采集异常: {}", e.getMessage()); }
-        }
-        } // anyInstanceAllows("slow_log_file")
+            int sent = 0;
+            int maxPerRound = cfg.getMaxPerRound();
+            for (Map<String, Object> row : rows) {
+                if (sent >= maxPerRound) break;
 
-        // === 采集源 3: 慢日志表 ===
-        for (String instanceId : dataSourceManager.getReadyInstanceIds()) {
-            if (!captureStatus.isEnabled(instanceId)) continue;
-            if (!captureStatus.isSourceEnabled(instanceId, "slow_log_table")) continue;
-            try {
-                String projectCode = dataSourceManager.findProjectCode(instanceId);
-                List<Map<String, Object>> rows = fetchSlowLog(instanceId);
-                if (rows == null || rows.isEmpty()) continue;
+                SlowSqlEvent event = normalizer.fromSlowLogRow(row, instanceId, projectCode);
+                if (event.getSqlText() == null) continue;
+                if (isNoise(event.getSqlText())) continue;
 
-                int sent = 0;
-                int maxPerRound = cfg.getMaxPerRound();
-                for (Map<String, Object> row : rows) {
-                    if (sent >= maxPerRound) break;
-
-                    SlowSqlEvent event = normalizer.fromSlowLogRow(row, instanceId, projectCode);
-                    if (event.getSqlText() == null) continue;
-                    if (isNoise(event.getSqlText())) continue;
-
-                    SlowSqlSeverity severity = SlowSqlSeverity.from(event);
-                    if (!dedupService.tryRegister(event.getFingerprint())) {
-                        // 命中缓存 → upsert（SQL ON DUPLICATE KEY 自动 +1）
-                        CapturedSql cached = repository.findByFingerprint(event.getFingerprint());
-                        if (cached != null) {
-                            repository.upsert(cached); // SQL already does occurrence_count + 1
-                        }
-                        String cachedReport = dedupService.getCachedReport(event.getFingerprint());
-                        if (cachedReport != null) {
-                            notifier.notify(event.getFingerprint(), event.getSqlText(),
-                                    "已有诊断:\n" + cachedReport,
-                                    event.getMetrics() != null ? event.getMetrics().getQueryTimeSec() : 0,
-                                    event.getMetrics() != null ? event.getMetrics().getRowsExamined() : 0,
-                                    event.getDbName() != null ? event.getDbName() : "unknown");
-                        }
-                        continue;
+                SlowSqlSeverity severity = SlowSqlSeverity.from(event);
+                if (!dedupService.tryRegister(event.getFingerprint())) {
+                    CapturedSql cached = repository.findByFingerprint(event.getFingerprint());
+                    // 检查诊断缓存（7天），有则回写 report
+                    String dedupCache = (severity != SlowSqlSeverity.P0)
+                            ? diagnosisCache.checkCache(instanceId, event.getSqlText(), event.getFingerprint())
+                            : null;
+                    if (dedupCache != null && cached != null) {
+                        cached.setDiagnosisReport(dedupCache);
+                        log.info("诊断缓存命中(dedup): fingerprint={}", event.getFingerprint().substring(0, Math.min(8, event.getFingerprint().length())));
                     }
+                    if (cached != null) {
+                        repository.upsert(cached);
+                    }
+                    if (dedupCache != null) {
+                        notifier.notify(event.getFingerprint(), event.getSqlText(),
+                                "已有诊断(缓存):\n" + dedupCache,
+                                event.getMetrics() != null ? event.getMetrics().getQueryTimeSec() : 0,
+                                event.getMetrics() != null ? event.getMetrics().getRowsExamined() : 0,
+                                event.getDbName() != null ? event.getDbName() : "unknown");
+                    }
+                    continue;
+                }
 
-                    // 新指纹 → 持久化 + 投递诊断
-                    CapturedSql cs = CapturedSql.fromEvent(event);
-                    cs.setSeverity(severity.name());
-                    repository.upsert(cs);
+                CapturedSql cs = CapturedSql.fromEvent(event);
+                cs.setSeverity(severity.name());
 
+                // 缓存检查：同指纹+同EXPLAIN → 复用报告
+                String cachedReport = (severity != SlowSqlSeverity.P0)
+                        ? diagnosisCache.checkCache(instanceId, event.getSqlText(), event.getFingerprint())
+                        : null;
+                if (cachedReport != null) {
+                    cs.setDiagnosisReport(cachedReport);
+                    log.info("诊断缓存命中: fingerprint={}", event.getFingerprint().substring(0, Math.min(8, event.getFingerprint().length())));
+                }
+                repository.upsert(cs);
+
+                if (cachedReport == null) {
                     Map<String, Object> msg = new LinkedHashMap<>();
                     msg.put("taskId", UUID.randomUUID().toString());
                     msg.put("instanceId", instanceId);
@@ -137,19 +140,54 @@ public class SlowSqlCaptureScheduler {
                     msg.put("source", "slow_log_table");
                     msg.put("timestamp", LocalDateTime.now().toString());
                     taskProducer.sendNormal(msg);
-
-                    if (severity == SlowSqlSeverity.P0) {
-                        notifier.notify(event.getFingerprint(), event.getSqlText(),
-                                severity.emoji + " [" + severity.label + "] 新发现慢查询",
-                                event.getMetrics() != null ? event.getMetrics().getQueryTimeSec() : 0,
-                                event.getMetrics() != null ? event.getMetrics().getRowsExamined() : 0,
-                                event.getDbName() != null ? event.getDbName() : "unknown");
-                    }
-                    sent++;
                 }
-                if (sent > 0) captureStatus.recordCollect(instanceId, sent);
+
+                if (severity == SlowSqlSeverity.P0) {
+                    notifier.notify(event.getFingerprint(), event.getSqlText(),
+                            severity.emoji + " [" + severity.label + "] 新发现慢查询",
+                            event.getMetrics() != null ? event.getMetrics().getQueryTimeSec() : 0,
+                            event.getMetrics() != null ? event.getMetrics().getRowsExamined() : 0,
+                            event.getDbName() != null ? event.getDbName() : "unknown");
+                }
+                sent++;
+            }
+            if (sent > 0) captureStatus.recordCollect(instanceId, sent);
+        } catch (Exception e) {
+            log.warn("PS采集异常 [{}]: {}", instanceId, e.getMessage());
+            captureStatus.recordError(instanceId, e.getMessage());
+        }
+    }
+
+    /**
+     * 慢日志文件轮询——由 CaptureStatusController 按实例动态调度。
+     */
+    public void pollFileInstance(String instanceId) {
+        SqlMonitorProperties.CaptureConfig cfg = properties.getCapture();
+        if (!cfg.isEnabled()) return;
+        if (!captureStatus.isEnabled(instanceId)) return;
+        if (!captureStatus.isSourceEnabled(instanceId, "slow_log_file")) return;
+
+        // 首次轮询：记录锚点时间，不采集历史
+        if (!fileAnchorMap.containsKey(instanceId)) {
+            fileAnchorMap.put(instanceId, LocalDateTime.now());
+            log.info("文件源锚点已记录 [{}]: 只采集此后的慢日志", instanceId);
+            return;
+        }
+        LocalDateTime anchor = fileAnchorMap.get(instanceId);
+
+        for (SlowLogFileSource fileSrc : fileSources) {
+            if (!instanceId.equals(fileSrc.getInstanceId())) continue;
+            try {
+                List<SlowSqlEvent> fileEvents = fileSrc.collect();
+                // 过滤：只保留采集时间在锚点之后的事件
+                List<SlowSqlEvent> filtered = fileEvents.stream()
+                        .filter(e -> e.getCapturedAt() != null && e.getCapturedAt().isAfter(anchor))
+                        .toList();
+                if (!filtered.isEmpty()) log.info("文件源采集到 {} 条（过滤掉 {} 条历史）",
+                        filtered.size(), fileEvents.size() - filtered.size());
+                processEvents(filtered);
             } catch (Exception e) {
-                log.warn("采集异常 [{}]: {}", instanceId, e.getMessage());
+                log.warn("文件采集异常 [{}]: {}", instanceId, e.getMessage());
                 captureStatus.recordError(instanceId, e.getMessage());
             }
         }
@@ -174,19 +212,32 @@ public class SlowSqlCaptureScheduler {
 
             if (!dedupService.tryRegister(fp)) { continue; }
 
+            SlowSqlSeverity severity = SlowSqlSeverity.from(event);
             CapturedSql cs = CapturedSql.fromEvent(event);
-            cs.setSeverity(SlowSqlSeverity.from(event).name());
+            cs.setSeverity(severity.name());
+
+            // 缓存检查：同指纹+同EXPLAIN → 复用报告
+            String cachedReport = (severity != SlowSqlSeverity.P0
+                    && event.getInstanceId() != null)
+                    ? diagnosisCache.checkCache(event.getInstanceId(), event.getSqlText(), fp)
+                    : null;
+            if (cachedReport != null) {
+                cs.setDiagnosisReport(cachedReport);
+                log.info("诊断缓存命中: fingerprint={}", fp.substring(0, Math.min(8, fp.length())));
+            }
             repository.upsert(cs);
 
-            Map<String, Object> msg = new LinkedHashMap<>();
-            msg.put("taskId", UUID.randomUUID().toString());
-            msg.put("instanceId", event.getInstanceId() != null ? event.getInstanceId() : "");
-            msg.put("projectCode", event.getProjectCode() != null ? event.getProjectCode() : "");
-            msg.put("enrichedPrompt", SlowSqlCaptureRouter.buildDiagnosisContext(event));
-            msg.put("fingerprint", fp);
-            msg.put("source", event.getSource());
-            msg.put("timestamp", LocalDateTime.now().toString());
-            taskProducer.sendNormal(msg);
+            if (cachedReport == null) {
+                Map<String, Object> msg = new LinkedHashMap<>();
+                msg.put("taskId", UUID.randomUUID().toString());
+                msg.put("instanceId", event.getInstanceId() != null ? event.getInstanceId() : "");
+                msg.put("projectCode", event.getProjectCode() != null ? event.getProjectCode() : "");
+                msg.put("enrichedPrompt", SlowSqlCaptureRouter.buildDiagnosisContext(event));
+                msg.put("fingerprint", fp);
+                msg.put("source", event.getSource());
+                msg.put("timestamp", LocalDateTime.now().toString());
+                taskProducer.sendNormal(msg);
+            }
             count++;
         }
         if (count > 0) {
@@ -256,11 +307,22 @@ public class SlowSqlCaptureScheduler {
 
     private List<Map<String, Object>> fetchSlowLog(String instanceId) {
         try {
-            // 首次轮询：只记录锚点，不采集历史
-            if (!lastCheckMap.containsKey(instanceId)) {
-                lastCheckMap.put(instanceId, LocalDateTime.now());
+            var jt = dataSourceManager.getMonitoringTemplate(instanceId);
+            double minSec = getMinQueryTimeFor(instanceId);
+
+            Long lastTimerStart = lastTimerStartMap.get(instanceId);
+
+            if (lastTimerStart == null) {
+                // 首次轮询：记录当前最大 TIMER_START 作为锚点，不采集历史
+                Long maxTimer = jt.queryForObject(
+                        "SELECT COALESCE(MAX(TIMER_START), 0) FROM performance_schema.events_statements_history_long",
+                        Long.class);
+                lastTimerStartMap.put(instanceId, maxTimer != null ? maxTimer : 0L);
+                log.info("PS 锚点已记录 [{}]: TIMER_START >= {}", instanceId, lastTimerStartMap.get(instanceId));
                 return List.of();
             }
+
+            // 增量查询：只查 TIMER_START > 上次锚点的新事件
             String sql = """
                     SELECT SQL_TEXT AS sql_text,
                            TIMER_WAIT / 1000000000000.0 AS query_time,
@@ -269,7 +331,7 @@ public class SlowSqlCaptureScheduler {
                            ROWS_SENT AS rows_sent,
                            NOW() AS start_time,
                            CURRENT_SCHEMA AS db
-                    FROM performance_schema.events_statements_history
+                    FROM performance_schema.events_statements_history_long
                     WHERE CURRENT_SCHEMA NOT IN
                            ('information_schema','mysql','performance_schema','sys','slow_sql_platform')
                       AND SQL_TEXT IS NOT NULL
@@ -279,13 +341,22 @@ public class SlowSqlCaptureScheduler {
                       AND SQL_TEXT NOT LIKE 'SELECT @@%'
                       AND SQL_TEXT NOT LIKE '%ApplicationName%'
                       AND TIMER_WAIT / 1000000000000.0 > ?
-                    ORDER BY TIMER_START DESC
+                      AND TIMER_START > ?
+                    ORDER BY TIMER_START ASC
                     LIMIT 200""";
-            var jt = dataSourceManager.getMonitoringTemplate(instanceId);
-            double minSec = getMinQueryTimeFor(instanceId);
-            List<Map<String, Object>> rows = jt.queryForList(sql, minSec);
-            lastCheckMap.put(instanceId, LocalDateTime.now());
-            if (!rows.isEmpty()) log.info("PS 采集到 {} 条", rows.size());
+
+            List<Map<String, Object>> rows = jt.queryForList(sql, minSec, lastTimerStart);
+
+            // 更新锚点为本次采集到的最大 TIMER_START
+            if (!rows.isEmpty()) {
+                Long newMax = jt.queryForObject(
+                        "SELECT MAX(TIMER_START) FROM performance_schema.events_statements_history_long WHERE TIMER_START > ?",
+                        Long.class, lastTimerStart);
+                if (newMax != null) {
+                    lastTimerStartMap.put(instanceId, newMax);
+                }
+                log.info("PS 采集到 {} 条 [{}]", rows.size(), instanceId);
+            }
             return rows;
         } catch (Exception e) {
             log.warn("PS 读取失败 [{}]: {}", instanceId, e.getMessage());

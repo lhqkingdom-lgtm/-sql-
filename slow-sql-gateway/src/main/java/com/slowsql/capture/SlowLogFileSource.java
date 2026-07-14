@@ -48,6 +48,9 @@ public class SlowLogFileSource implements CaptureSource {
 
     @Override public String name() { return "slow_log_file"; }
 
+    /** 获取此文件源绑定的实例 ID（来自 yml 配置）。 */
+    public String getInstanceId() { return config.getInstanceId(); }
+
     @Override
     public boolean isConfigured() {
         return config != null && "slow_log_file".equals(config.getType())

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import com.slowsql.capture.CapturedSql;
 import com.slowsql.capture.CapturedSqlRepository;
+import com.slowsql.capture.DiagnosisCacheService;
 import com.slowsql.config.RabbitMqConfig;
 import com.slowsql.persistence.DiagnosisRecord;
 import com.slowsql.persistence.DiagnosisRecordRepository;
@@ -36,15 +37,18 @@ public class DiagnosisResultConsumer {
     private final DiagnosisRecordRepository recordRepository;
     private final CapturedSqlRepository capturedRepo;
     private final ObjectMapper objectMapper;
+    private final DiagnosisCacheService diagnosisCache;
 
     public DiagnosisResultConsumer(StringRedisTemplate redis,
                                     DiagnosisRecordRepository recordRepository,
                                     CapturedSqlRepository capturedRepo,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    DiagnosisCacheService diagnosisCache) {
         this.redis = redis;
         this.recordRepository = recordRepository;
         this.capturedRepo = capturedRepo;
         this.objectMapper = objectMapper;
+        this.diagnosisCache = diagnosisCache;
     }
 
     @RabbitListener(queues = RabbitMqConfig.QUEUE_DONE, ackMode = "MANUAL")
@@ -133,6 +137,12 @@ public class DiagnosisResultConsumer {
             if (result.get("toolCallCount") instanceof Number n) record.setToolCallCount(n.intValue());
             record.setUpdatedAt(LocalDateTime.now());
             recordRepository.save(record);
+
+            // 写诊断缓存（同指纹+同EXPLAIN复用）
+            if (DiagnosisRecord.STATUS_COMPLETED.equalsIgnoreCase(record.getStatus())
+                    && !finger.isEmpty() && !iid.isEmpty() && report != null) {
+                diagnosisCache.storeCache(iid, originalSql, finger, report);
+            }
 
             // 回写 captured_sql.diagnosis_report
             if (!finger.isEmpty() && report != null) {

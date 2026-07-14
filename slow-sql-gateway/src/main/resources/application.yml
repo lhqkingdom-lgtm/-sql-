@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${GATEWAY_PORT:8080}
 
 spring:
   application:
@@ -34,7 +34,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:123456}
       database: ${REDIS_DB:2}
 
 # ========== Jasypt 加密配置 ==========
@@ -46,6 +46,13 @@ jasypt:
 # ========== 内部安全令牌（Python Agent 调用数据 API 必须携带） ==========
 gateway:
   internal-token: ${INTERNAL_TOKEN:slow-sql-internal-token-v5}
+  agent-url: ${AGENT_URL:http://localhost:8000}
+
+# ========== RabbitMQ Management API ==========
+rabbitmq-management:
+  url: http://${RABBITMQ_HOST:localhost}:${RABBITMQ_MGMT_PORT:15672}/api
+  username: ${RABBITMQ_USER:guest}
+  password: ${RABBITMQ_PASS:guest}
 
 # ========== 慢SQL监控配置 ==========
 sql-monitor:
@@ -69,7 +76,7 @@ sql-monitor:
         lookback-seconds: 600
       - type: http_endpoint
       - type: slow_log_file
-        path: D:/slow-sql-analyzer-v5/slow-sql-gateway/test-slow.log
+        path: ${SLOW_LOG_FILE_PATH:./test-slow.log}
         instanceId: tc-dev-mysql
         min-query-time-sec: 0.5
         min-rows-examined: 0
@@ -92,11 +99,11 @@ sql-monitor:
   # ========== MySQL实例（按host:port去重） ==========
   instances:
     - id: tc-dev-mysql
-      host: localhost
-      port: 3306
-      username: root
+      host: ${INSTANCE_HOST:localhost}
+      port: ${INSTANCE_PORT:3306}
+      username: ${INSTANCE_USERNAME:root}
       password: ${INSTANCE_PASSWORD:123456}
-      defaultDatabase: test_sql
+      defaultDatabase: ${INSTANCE_DATABASE:test_sql}
 
 # ========== 日志 ==========
 logging:

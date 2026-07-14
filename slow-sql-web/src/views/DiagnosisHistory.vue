@@ -82,9 +82,31 @@ function sqlPreview(row) { const sql = row.cleanSql || row.originalSql || row.sq
 
 function renderMarkdown(md) {
   if (!md) return ''
-  return md.replace(/^### (.+)/gm,'<h4>$1</h4>').replace(/^## (.+)/gm,'<h3>$1</h3>').replace(/^# (.+)/gm,'<h2>$1</h2>')
-    .replace(/```sql\n?([\s\S]*?)```/g,'<pre><code>$1</code></pre>').replace(/```\n?([\s\S]*?)```/g,'<pre><code>$1</code></pre>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<p></p>').replace(/\n/g,'<br>')
+  return md
+    // 代码块(先处理，避免内部内容被后续规则误伤)
+    .replace(/```sql\n?([\s\S]*?)```/g,'<pre><code>$1</code></pre>')
+    .replace(/```\n?([\s\S]*?)```/g,'<pre><code>$1</code></pre>')
+    // 行内代码
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    // 标题
+    .replace(/^### (.+)/gm,'<h4>$1</h4>')
+    .replace(/^## (.+)/gm,'<h3>$1</h3>')
+    .replace(/^# (.+)/gm,'<h2>$1</h2>')
+    // 粗体
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    // 表格
+    .replace(/^\|(.+)\|$/gm, (line) => {
+      const cells = line.split('|').filter(c => c.trim()).map(c => c.trim())
+      if (cells.every(c => /^[-:]+$/.test(c))) return '' // 分隔行跳过
+      return '<tr>' + cells.map(c => /^[-:]+$/.test(c) ? '<th></th>' : `<td>${c}</td>`).join('') + '</tr>'
+    })
+    // blockquote
+    .replace(/^> (.+)/gm,'<blockquote>$1</blockquote>')
+    // 水平线
+    .replace(/^---$/gm,'<hr>')
+    // 段落
+    .replace(/\n\n/g,'<p></p>')
+    .replace(/\n/g,'<br>')
 }
 
 async function load() {

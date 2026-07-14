@@ -4,6 +4,7 @@ import com.slowsql.config.DataSourceManager;
 import com.slowsql.gateway.DiagnosisTaskProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,15 +31,18 @@ public class HttpCaptureController implements CaptureSource {
     private final CapturedSqlRepository repository;
     private final DiagnosisTaskProducer taskProducer;
     private final FingerprintDedupService dedupService;
+    private final CaptureStatusController captureStatus;
 
     public HttpCaptureController(DataSourceManager dataSourceManager,
                                   CapturedSqlRepository repository,
                                   DiagnosisTaskProducer taskProducer,
-                                  FingerprintDedupService dedupService) {
+                                  FingerprintDedupService dedupService,
+                                  @Lazy CaptureStatusController captureStatus) {
         this.dataSourceManager = dataSourceManager;
         this.repository = repository;
         this.taskProducer = taskProducer;
         this.dedupService = dedupService;
+        this.captureStatus = captureStatus;
     }
 
     @Override public String name() { return "http_endpoint"; }
@@ -78,6 +82,16 @@ public class HttpCaptureController implements CaptureSource {
         if (sql.length() > MAX_SQL_LENGTH) {
             return ResponseEntity.badRequest().body(Map.of("error", "sql exceeds max " + MAX_SQL_LENGTH));
         }
+
+        Object insId = body.get("instanceId");
+        // 检查实例是否开启了 HTTP 端点采集
+        if (insId instanceof String iid && !iid.isBlank()) {
+            if (!captureStatus.isEnabled(iid) || !captureStatus.isSourceEnabled(iid, "http_endpoint")) {
+                return ResponseEntity.ok(Map.of("received", false, "reason",
+                        "实例 " + iid + " 未开启 HTTP 端点采集，请在轮询管理中开启"));
+            }
+        }
+
         if (pending.size() >= MAX_PENDING) {
             log.warn("HTTP 采集队列已满 ({})", MAX_PENDING);
             return ResponseEntity.ok(Map.of("received", false, "reason", "queue full"));
@@ -90,7 +104,6 @@ public class HttpCaptureController implements CaptureSource {
         Object dbObj = body.getOrDefault("database", "unknown");
         captured.setDatabaseName(dbObj instanceof String s ? s : String.valueOf(dbObj));
 
-        Object insId = body.get("instanceId");
         if (insId instanceof String s) {
             captured.setInstanceId(s);
             // 自动补充 projectCode
