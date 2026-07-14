@@ -6,6 +6,7 @@ app*.log
 app*.err
 *.rdb
 *.png
+!screenshots/*.png
 .env
 .venv/
 node_modules/
